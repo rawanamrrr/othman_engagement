@@ -8,84 +8,87 @@ interface VideoIntroProps {
 }
 
 export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [hasStarted, setHasStarted] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
-  // Initialize video immediately
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
+    // Check if iOS
+    const userAgent = window.navigator.userAgent;
+    const isIOSDevice = typeof navigator !== 'undefined' && (
+      /iPad|iPhone|iPod/.test(userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+    setIsIOS(isIOSDevice);
+  }, []);
 
-    // Set video attributes for optimal loading and playback
-    video.preload = 'auto'
-    video.muted = true
-    video.playsInline = true
-    video.defaultMuted = true
-    video.setAttribute('muted', 'muted')
-    video.setAttribute('playsinline', '')
-    video.setAttribute('webkit-playsinline', 'true')
-    video.setAttribute('x5-playsinline', 'true')
-    video.setAttribute('x5-video-player-type', 'h5')
-    video.setAttribute('x5-video-player-fullscreen', 'false')
-    video.setAttribute('x5-video-orientation', 'portrait')
-    video.setAttribute('preload', 'auto')
-    
-    // Try to start playback immediately
+  const handlePlay = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      video.muted = true; // Ensure video is muted for autoplay
+      await video.play();
+      setIsPlaying(true);
+    } catch (error) {
+      console.error("Error playing video:", error);
+    }
+  };
+
+  // Handle autoplay on mount for all devices including iOS
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
     const playVideo = async () => {
       try {
-        video.currentTime = 0
-        await video.play()
-        setHasStarted(true)
+        video.muted = true;
+        await video.play();
+        setIsPlaying(true);
       } catch (error) {
-        console.log('Initial play attempt failed, retrying...', error)
-        // If first attempt fails, try with a small delay
-        setTimeout(() => {
-          video.play().catch(e => {
-            console.error('Secondary play attempt failed:', e)
-            // If still failing, skip to next section
-            onComplete()
-          })
-        }, 300)
+        console.log("Autoplay prevented:", error);
       }
-    }
+    };
 
-    // Start playback when metadata is loaded
-    const onLoaded = () => {
-      playVideo().catch(console.error)
-    }
-
-    // Add event listeners
-    video.addEventListener('loadedmetadata', onLoaded, { once: true })
-    video.addEventListener('ended', onComplete, { once: true })
+    // Use a small delay to ensure the video element is fully ready
+    const timeout = setTimeout(playVideo, 100);
     
-    // Start loading
-    video.load()
-    
-    // Cleanup
+    // Cleanup function
     return () => {
-      video.removeEventListener('loadedmetadata', onLoaded)
-      video.removeEventListener('ended', onComplete)
-      if (!video.paused) video.pause()
-    }
-  }, [onComplete])
-
-  // Handle click to skip
-  const handleClick = () => {
-    onSkip()
-  }
+      clearTimeout(timeout);
+      if (video && !video.paused) {
+        video.pause();
+      }
+    };
+  }, []);
 
   return (
     <div 
-      className="fixed inset-0 bg-black z-50"
-      onClick={handleClick}
+      className="fixed inset-0 bg-black flex items-center justify-center z-50"
+      onClick={() => {
+        if (!isPlaying) {
+          handlePlay();
+        } else {
+          onComplete();
+        }
+      }}
     >
-      <video
+      <video 
         ref={videoRef}
         className="w-full h-full object-contain"
-        playsInline
-        muted
-        autoPlay
+        playsInline={true}
+        muted={true}
+        autoPlay={true}
+        // @ts-ignore - These are valid HTML attributes that TypeScript doesn't know about
+        webkit-playsinline="true"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="false"
+        x5-video-orientation="portrait"
+        // @ts-ignore
+        disablePictureInPicture
         preload="auto"
+        onEnded={onComplete}
         style={{
           position: 'absolute',
           top: 0,
@@ -93,17 +96,14 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
           width: '100%',
           height: '100%',
           objectFit: 'contain',
-          backgroundColor: 'black',
-          transform: 'translateZ(0)',
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden'
+          backgroundColor: 'black'
         }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
       >
-        <source 
-          src="/engagement-video-optimized.mp4" 
-          type="video/mp4"
-        />
+        <source src="/engagement-video.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
       </video>
     </div>
-  )
+  );
 }
