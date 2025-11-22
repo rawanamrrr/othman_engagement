@@ -451,6 +451,7 @@ export default function HandwrittenMessage() {
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('message', 'A new message from the engagement website');
+      formData.append('message_type', 'handwritten');
       formData.append('image', blob, 'drawing.png');
 
       // Send data to API route
