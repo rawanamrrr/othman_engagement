@@ -30,10 +30,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Email configuration - using environment variables with fallback to provided credentials
-    const smtpUser = process.env.GMAIL_USER || process.env.SMTP_USER || 'digitivaa@gmail.com';
-    const smtpPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || process.env.GOOGLE_APP_PASSWORD || 'aoqa gsal cmgn qcym';
-    const recipientEmail = process.env.CONTACT_EMAIL || toEmail || 'engagementzeyadrawan@gmail.com';
+    // Email configuration - using environment variables
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const recipientEmail = process.env.CONTACT_EMAIL || toEmail;
 
     // Validate environment variables
     if (!smtpUser || !smtpPass) {

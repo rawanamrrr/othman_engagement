@@ -5,10 +5,10 @@ export async function POST(req: NextRequest) {
   try {
     const { name, guests, guestNames, favoriteSong, isAttending } = await req.json();
 
-    // Email configuration - using environment variables with fallback to provided credentials
-    const smtpUser = process.env.GMAIL_USER || process.env.SMTP_USER || 'digitivaa@gmail.com';
-    const smtpPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS || process.env.GOOGLE_APP_PASSWORD || 'aoqa gsal cmgn qcym';
-    const recipientEmail = process.env.CONTACT_EMAIL || 'engagementzeyadrawan@gmail.com';
+    // Email configuration - using environment variables
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const recipientEmail = process.env.CONTACT_EMAIL;
 
     if (!smtpUser || !smtpPass) {
       return NextResponse.json(
@@ -83,7 +83,14 @@ export async function POST(req: NextRequest) {
             ` : `
               <!-- Not Attending -->
               <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
-                <p style="color: #1f2937; margin: 0;">We're sorry you won't be able to join us, but we appreciate you letting us know!</p>
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 20px; margin-bottom: 15px;">Guest Information</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-weight: bold; width: 40%;">Name:</td>
+                    <td style="padding: 8px 0; color: #1f2937; font-size: 18px; font-weight: 500;">${name}</td>
+                  </tr>
+                </table>
+                <p style="color: #1f2937; margin: 15px 0 0 0; font-style: italic;">We're sorry you won't be able to join us, but we appreciate you letting us know!</p>
               </div>
             `}
             

@@ -79,9 +79,21 @@ export default function RsvpForm() {
                 </div>
               </>
             ) : (
-              <p className="text-center">{t('sorryToMissYou')}</p>
+              <div>
+                <div className="mb-4">
+                  <Label htmlFor="name">{t('name')}</Label>
+                  <Input 
+                    id="name" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)} 
+                    required 
+                    className="mt-1"
+                  />
+                </div>
+                <p className="text-center text-muted-foreground mb-4">{t('sorryToMissYou')}</p>
+              </div>
             )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full mt-4" disabled={isSubmitting || (isAttending === false && !name.trim())}>
               {isSubmitting ? t('submitting') : t('submitRsvp')}
             </Button>
             {submitStatus === 'success' && <p className="text-center text-success">{t('rsvpSuccess')}</p>}
