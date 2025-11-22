@@ -27,11 +27,36 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
     if (!video) return;
 
     try {
-      video.muted = true; // Ensure video is muted for autoplay
-      await video.play();
-      setIsPlaying(true);
+      video.muted = true;
+      video.playsInline = true;
+      
+      // If video is already loaded enough to play
+      if (video.readyState >= 3) { // HAVE_FUTURE_DATA
+        await video.play();
+        setIsPlaying(true);
+      } else {
+        // If not loaded enough, wait for canplay event
+        const onCanPlay = () => {
+          video.play().then(() => {
+            setIsPlaying(true);
+          }).catch(e => {
+            console.error("Playback failed:", e);
+          });
+          video.removeEventListener('canplay', onCanPlay);
+        };
+        
+        video.addEventListener('canplay', onCanPlay, { once: true });
+        
+        // Also try to play immediately in case canplay already happened
+        try {
+          await video.play();
+          setIsPlaying(true);
+        } catch (e) {
+          console.log("Initial play failed, waiting for canplay event");
+        }
+      }
     } catch (error) {
-      console.error("Error playing video:", error);
+      console.error("Error in handlePlay:", error);
     }
   };
 
@@ -62,17 +87,35 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
     };
   }, []);
 
-  // Add preload link for the video
+  // Preload video with higher priority
   useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'video';
-    link.href = '/engagement-video.mp4';
-    link.type = 'video/mp4';
-    document.head.appendChild(link);
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Set video preload and other attributes for better loading
+    video.preload = 'auto';
+    video.playsInline = true;
+    video.muted = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
     
+    // Preload the video immediately
+    const loadVideo = () => {
+      if (video.readyState < 2) { // HAVE_CURRENT_DATA
+        video.load();
+      }
+    };
+
+    // Try to preload as soon as possible
+    if (document.readyState === 'complete') {
+      loadVideo();
+    } else {
+      window.addEventListener('load', loadVideo, { once: true });
+    }
+
+    // Cleanup
     return () => {
-      document.head.removeChild(link);
+      window.removeEventListener('load', loadVideo);
     };
   }, []);
 
@@ -90,9 +133,9 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
       <video 
         ref={videoRef}
         className="w-full h-full object-contain"
-        playsInline={true}
-        muted={true}
-        autoPlay={true}
+        playsInline
+        muted
+        autoPlay
         // @ts-ignore - These are valid HTML attributes that TypeScript doesn't know about
         webkit-playsinline="true"
         x5-playsinline="true"
@@ -110,17 +153,34 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
           width: '100%',
           height: '100%',
           objectFit: 'contain',
-          backgroundColor: 'black'
+          backgroundColor: 'black',
+          // Ensure video is hardware accelerated
+          transform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+          WebkitTransform: 'translateZ(0)'
         }}
         onPlay={() => {
           setIsPlaying(true);
           // Force play in case autoplay was blocked
-          if (videoRef.current && videoRef.current.paused) {
-            videoRef.current.play().catch(e => console.log("Playback failed:", e));
+          const video = videoRef.current;
+          if (video && video.paused) {
+            video.play().catch(e => console.log("Playback failed:", e));
           }
         }}
         onPause={() => setIsPlaying(false)}
         onError={(e) => console.error("Video error:", e)}
+        // Preload metadata to help with faster playback
+        onLoadedMetadata={() => {
+          console.log('Video metadata loaded');
+          const video = videoRef.current;
+          if (video) {
+            // Try to start playback if not already playing
+            if (video.paused) {
+              video.play().catch(e => console.log('Auto-play failed:', e));
+            }
+          }
+        }}
       >
         <source 
           src="/engagement-video.mp4" 
