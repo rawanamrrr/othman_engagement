@@ -62,6 +62,20 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
     };
   }, []);
 
+  // Add preload link for the video
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'video';
+    link.href = '/engagement-video.mp4';
+    link.type = 'video/mp4';
+    document.head.appendChild(link);
+    
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
   return (
     <div 
       className="fixed inset-0 bg-black flex items-center justify-center z-50"
@@ -98,10 +112,20 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
           objectFit: 'contain',
           backgroundColor: 'black'
         }}
-        onPlay={() => setIsPlaying(true)}
+        onPlay={() => {
+          setIsPlaying(true);
+          // Force play in case autoplay was blocked
+          if (videoRef.current && videoRef.current.paused) {
+            videoRef.current.play().catch(e => console.log("Playback failed:", e));
+          }
+        }}
         onPause={() => setIsPlaying(false)}
+        onError={(e) => console.error("Video error:", e)}
       >
-        <source src="/engagement-video.mp4" type="video/mp4" />
+        <source 
+          src="/engagement-video.mp4" 
+          type="video/mp4"
+        />
         Your browser does not support the video tag.
       </video>
     </div>
