@@ -100,7 +100,7 @@ export default function VideoIntro({ onComplete, onSkip }: VideoIntroProps) {
         }}
       >
         <source 
-          src="/engagement-video.mp4" 
+          src="/engagement-video-optimized.mp4" 
           type="video/mp4"
         />
       </video>
