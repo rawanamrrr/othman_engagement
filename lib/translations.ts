@@ -16,6 +16,8 @@ type TranslationKey =
   | 'guestNames'
   | 'sorryToMissYou'
   | 'submitRsvp'
+  | 'promiseToDance'
+  | 'favoriteSongPlaceholder'
   | 'submitting'
   | 'rsvpTitle'
   | 'rsvpDescription'
@@ -179,6 +181,14 @@ export const translations: Translations = {
   rsvpError: {
     en: 'Please fill in all fields',
     ar: 'الرجاء ملء جميع الحقول',
+  },
+  promiseToDance: {
+    en: 'Promise to dance if you play',
+    ar: 'وعد بالرقص إذا قمتم بتشغيل',
+  },
+  favoriteSongPlaceholder: {
+    en: 'Add your favorite song',
+    ar: 'أضف أغنيتك المفضلة',
   },
   muteMusic: {
     en: 'Mute background music',

@@ -12,6 +12,7 @@ export default function RsvpForm() {
   const [name, setName] = useState("")
   const [guests, setGuests] = useState("")
   const [guestNames, setGuestNames] = useState("")
+  const [favoriteSong, setFavoriteSong] = useState("")
   const [isAttending, setIsAttending] = useState<boolean | null>(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -26,7 +27,7 @@ export default function RsvpForm() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name, guests, guestNames, isAttending }),
+      body: JSON.stringify({ name, guests, guestNames, favoriteSong, isAttending }),
     })
 
     if (res.ok) {
@@ -66,6 +67,15 @@ export default function RsvpForm() {
                 <div>
                   <Label htmlFor="guestNames">{t('guestNames')}</Label>
                   <Textarea id="guestNames" value={guestNames} onChange={(e) => setGuestNames(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="favoriteSong">{t('promiseToDance')}</Label>
+                  <Input 
+                    id="favoriteSong" 
+                    value={favoriteSong} 
+                    onChange={(e) => setFavoriteSong(e.target.value)} 
+                    placeholder={t('favoriteSongPlaceholder')}
+                  />
                 </div>
               </>
             ) : (

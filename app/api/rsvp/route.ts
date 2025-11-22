@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
 export async function POST(req: NextRequest) {
-  const { name, guests, guestNames, isAttending } = await req.json();
+  const { name, guests, guestNames, favoriteSong, isAttending } = await req.json();
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
       ${isAttending ? `
         <p><strong>Name:</strong> ${name}</p>
         <p><strong>Number of Guests:</strong> ${guests}</p>
-        <p><strong>Guest Names:</strong> ${guestNames}</p>
+        <p><strong>Guest Names:</strong> ${guestNames || 'N/A'}</p>
+        ${favoriteSong ? `<p><strong>Favorite Song (Promise to dance if you play):</strong> ${favoriteSong}</p>` : ''}
       ` : ''}
     `,
   };
