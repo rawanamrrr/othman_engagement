@@ -22,18 +22,40 @@ export default function RsvpForm() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    const res = await fetch("/api/rsvp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name, guests, guestNames, favoriteSong, isAttending }),
-    })
+    try {
+      const res = await fetch("/api/rsvps", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          name, 
+          guests: Number(guests) || 0, 
+          guestNames, 
+          favoriteSong, 
+          isAttending 
+        }),
+      });
 
-    if (res.ok) {
-      setSubmitStatus("success")
-    } else {
-      setSubmitStatus("error")
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit RSVP');
+      }
+
+      setSubmitStatus("success");
+      // Reset form
+      if (isAttending) {
+        setName("");
+        setGuests("");
+        setGuestNames("");
+        setFavoriteSong("");
+      } else {
+        setName("");
+      }
+    } catch (error) {
+      console.error('RSVP submission error:', error);
+      setSubmitStatus("error");
     }
 
     setIsSubmitting(false)
