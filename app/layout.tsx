@@ -1,5 +1,6 @@
+"use client";
+
 import type React from "react"
-import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Playfair_Display } from "next/font/google"
@@ -8,6 +9,7 @@ import { Suspense } from "react"
 import { RomanticAudio } from "@/components/romantic-audio"
 import { LanguageProvider } from "@/contexts/LanguageContext"
 import { LanguageToggle } from "@/components/language-toggle"
+import { usePathname } from "next/navigation"
 import { Footer } from "@/components/footer"
 import "./globals.css"
 
@@ -17,42 +19,14 @@ const playfair = Playfair_Display({
   display: "swap",
 })
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://othmanandrita.netlify.app"),
-  title: "Welcome to Our Beginning",
-  description: "Celebrating the start of our journey together",
-  generator: "Digitiva",
-  openGraph: {
-    url: "https://othmanandrita.netlify.app",
-    type: "website",
-    title: "Welcome to Our Beginning",
-    description: "Celebrating the start of our journey together",
-    images: [
-      {
-        url: "https://othmanandrita.netlify.app/invitation-design-arabic.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Our Engagement Invitation",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Welcome to Our Beginning",
-    description: "Celebrating the start of our journey together",
-    images: ["https://othmanandrita.netlify.app/invitation-design-arabic.jpg"],
-  },
-  icons: {
-    icon: "/invitation-design-arabic.jpg",
-    apple: "/invitation-design-arabic.jpg",
-  },
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const pathname = usePathname()
+  const isAdminPage = pathname?.startsWith('/admin')
+
   return (
     <html lang="en">
       <head>
@@ -105,7 +79,7 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} ${playfair.variable}`}>
         <LanguageProvider>
           <Suspense fallback={null}>
-            <LanguageToggle />
+            {!isAdminPage && <LanguageToggle />}
             {children}
             <RomanticAudio />
             <Footer />

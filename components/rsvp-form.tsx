@@ -77,7 +77,7 @@ export default function RsvpForm() {
                     placeholder={t('favoriteSongPlaceholder')}
                   />
                 </div>
-              </>
+                              </>
             ) : (
               <div>
                 <div className="mb-4">

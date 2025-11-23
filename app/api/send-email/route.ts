@@ -1,5 +1,10 @@
 // app/api/send-email/route.ts
 import nodemailer from 'nodemailer';
+import fs from 'fs/promises';
+import path from 'path';
+
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
 // Ensure this route uses the Node.js runtime (not Edge), required for nodemailer
 export const runtime = 'nodejs';
@@ -67,9 +72,17 @@ export async function POST(request: Request) {
     // Process image attachment if provided
     let attachments: any[] = [];
     let imageCid = '';
+    let imageUrl = '';
     if (imageFile) {
       const imageBytes = await imageFile.arrayBuffer();
       const buffer = Buffer.from(imageBytes);
+      const filename = `message-${Date.now()}.png`;
+      const imagePath = path.join(UPLOADS_DIR, filename);
+
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      await fs.writeFile(imagePath, buffer);
+
+      imageUrl = `/uploads/${filename}`;
       imageCid = 'handwritten-message-' + Date.now();
       
       attachments.push({
@@ -153,6 +166,34 @@ export async function POST(request: Request) {
         </html>
       `;
     } else if (messageType === 'handwritten' || imageFile) {
+      if (name && imageUrl) {
+        let submissions = [];
+        try {
+          const fileData = await fs.readFile(DATA_FILE, 'utf-8');
+          if (fileData) {
+            submissions = JSON.parse(fileData);
+          }
+        } catch (error) {
+          console.log('submissions.json not found or empty, creating a new one.');
+        }
+
+        const userSubmissionIndex = submissions.findIndex(
+          (sub: any) => sub.name.toLowerCase() === name.toLowerCase()
+        );
+
+        if (userSubmissionIndex !== -1) {
+          submissions[userSubmissionIndex].handwrittenMessageUrl = imageUrl;
+        } else {
+          submissions.push({
+            name,
+            handwrittenMessageUrl: imageUrl,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        await fs.writeFile(DATA_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
+      }
+
       // Handwritten Message Email Template
       subject = `Handwritten Message from ${name}`;
       htmlContent = `
