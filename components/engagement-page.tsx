@@ -107,7 +107,7 @@ export default function EngagementPage() {
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <span className="text-lg text-foreground">7:00 PM</span>
+                    <span className="text-lg text-foreground">4:00 PM to 10:00 PM</span>
                   </div>
                 </div>
               </div>

@@ -205,7 +205,8 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
   const { scrollYProgress } = useScroll()
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 1.05])
   
-  const opacity = useTransform(scrollYProgress, [0, 0.1], [1, 0])
+  // Keep countdown always visible by setting opacity to 1 regardless of scroll
+  const opacity = useTransform(scrollYProgress, [0, 1], [1, 1])
   const y = useTransform(scrollYProgress, [0, 0.1], [0, -20])
   
   // Animation values for the path
@@ -213,9 +214,11 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
   const pathY1 = useTransform(scrollYProgress, [0, 0.5], [0, 20])
   const pathY2 = useTransform(scrollYProgress, [0, 0.5], [0, 40])
   
-    const eventDate = new Date("2026-01-04T16:00:00");
+    // Set the event date and time range
+  const eventDate = new Date("2026-01-04T16:00:00");
+  const endTime = new Date("2026-01-04T22:00:00");
   const formattedDate = formatDate(eventDate, language);
-  const formattedTime = formatTime(eventDate, language);
+  const formattedTime = `${formatTime(eventDate, language)} to ${formatTime(endTime, language)}`;
 
   // On mount: preload both static image AND GIF for instant display
   useEffect(() => {
@@ -291,6 +294,14 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
       gifTimerRef.current = null;
     }
   }
+
+  // Handle scroll to top when skipping intro
+  useEffect(() => {
+    if (playGifTrigger) {
+      // Scroll to top when skipping intro
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [playGifTrigger]);
 
   if (!mounted) {
     return (
@@ -424,41 +435,41 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
         />
       </motion.section>
 
-      {/* Countdown Section */}
-      <motion.section 
-        className="relative py-20 px-4 md:py-32 overflow-hidden"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={fastStaggerContainer}
-      >
+      {/* Countdown Section - Always Visible */}
+      <section className="relative py-20 px-4 md:py-32 overflow-hidden">
         {/* Animated Decorative Elements */}
         <motion.div 
           className="absolute top-0 left-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"
           initial={{ x: -300, opacity: 0, scale: 0.5 }}
-          whileInView={{ x: 0, opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
+          animate={{ x: 0, opacity: 1, scale: 1 }}
           transition={{ duration: 1.8, ease: "easeOut" }}
         />
         <motion.div 
           className="absolute bottom-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"
           initial={{ x: 300, opacity: 0, scale: 0.5 }}
-          whileInView={{ x: 0, opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
+          animate={{ x: 0, opacity: 1, scale: 1 }}
           transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
         />
         
         <div className="relative max-w-6xl mx-auto text-center">
-          <motion.div 
-            className="inline-flex flex-col items-center mb-16"
-            variants={fastStaggerContainer}
-          >
-            <motion.div className="flex items-center gap-4 mb-8" variants={flyFromLeft}>
+          <div className="inline-flex flex-col items-center mb-16">
+            <motion.div 
+              className="flex items-center gap-4 mb-8"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { 
+                  opacity: 1, 
+                  y: 0,
+                  transition: { duration: 0.8, ease: "easeOut" }
+                }
+              }}
+            >
               <motion.div 
                 className="w-24 h-px bg-gradient-to-r from-transparent via-accent to-transparent"
                 initial={{ scaleX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true }}
+                animate={{ scaleX: 1 }}
                 transition={{ duration: 1, delay: 0.3 }}
               />
               <motion.svg 
@@ -466,8 +477,7 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
                 fill="currentColor" 
                 viewBox="0 0 24 24"
                 initial={{ scale: 0, rotate: -180 }}
-                whileInView={{ scale: 1, rotate: 0 }}
-                viewport={{ once: true }}
+                animate={{ scale: 1, rotate: 0 }}
                 transition={{ duration: 0.8, delay: 0.5, type: "spring" }}
               >
                 <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
@@ -475,24 +485,37 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
               <motion.div 
                 className="w-24 h-px bg-gradient-to-r from-transparent via-accent to-transparent"
                 initial={{ scaleX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true }}
+                animate={{ scaleX: 1 }}
                 transition={{ duration: 1, delay: 0.3 }}
               />
             </motion.div>
-            <motion.h2 className="font-luxury text-5xl md:text-6xl lg:text-7xl text-foreground leading-tight mb-6 tracking-wide" variants={flyFromRight}>
+            <motion.h2 
+              className="font-luxury text-5xl md:text-6xl lg:text-7xl text-foreground leading-tight mb-6 tracking-wide"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
               {t('ourSpecialDay')}
             </motion.h2>
-            <motion.p className="font-luxury text-xl md:text-2xl text-muted-foreground font-light max-w-3xl italic" variants={scaleIn}>
+            <motion.p 
+              className="font-luxury text-xl md:text-2xl text-muted-foreground font-light max-w-3xl italic"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
               {t('countingMoments')}
             </motion.p>
-          </motion.div>
+          </div>
 
-          <motion.div variants={scaleIn}>
-                        <CountdownTimer targetDate={new Date("2026-01-04T16:00:00")} />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <CountdownTimer targetDate={new Date("2026-01-04T16:00:00")} />
           </motion.div>
         </div>
-      </motion.section>
+      </section>
 
       {/* Venue Section */}
       <motion.section
