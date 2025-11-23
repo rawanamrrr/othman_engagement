@@ -436,22 +436,8 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
       </motion.section>
 
       {/* Countdown Section - Always Visible */}
-      <section className="relative py-20 px-4 md:py-32 overflow-hidden">
-        {/* Animated Decorative Elements */}
-        <motion.div 
-          className="absolute top-0 left-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"
-          initial={{ x: -300, opacity: 0, scale: 0.5 }}
-          animate={{ x: 0, opacity: 1, scale: 1 }}
-          transition={{ duration: 1.8, ease: "easeOut" }}
-        />
-        <motion.div 
-          className="absolute bottom-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"
-          initial={{ x: 300, opacity: 0, scale: 0.5 }}
-          animate={{ x: 0, opacity: 1, scale: 1 }}
-          transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
-        />
-        
-        <div className="relative max-w-6xl mx-auto text-center">
+      <section className="relative py-20 px-4 md:py-32">
+        <div className="max-w-6xl mx-auto text-center">
           <div className="inline-flex flex-col items-center mb-16">
             <motion.div 
               className="flex items-center gap-4 mb-8"
