@@ -1,73 +1,348 @@
-// app/api/send-email/route.ts
-import nodemailer from 'nodemailer';
-import fs from 'fs/promises';
+import { NextRequest } from 'next/server';
+import { sendEmail } from '@/lib/email-service';
 import path from 'path';
+import fs from 'fs/promises';
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
-// Ensure this route uses the Node.js runtime (not Edge), required for nodemailer
 export const runtime = 'nodejs';
 
-export async function POST(request: Request) {
+interface FormDataEntry {
+  [key: string]: string | File | null;
+}
+
+export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
+    const formEntries: FormDataEntry = {};
     
-    // Extract form data
-    const name = formData.get('name') as string;
-    const toEmail = (formData.get('to_email') as string) || 'engagementzeyadrawan@gmail.com';
-    const message = formData.get('message') as string;
-    const messageType = (formData.get('message_type') as string) || 'normal';
-    const imageFile = formData.get('image') as File | null;
+    // Convert FormData to a plain object
+    for (const [key, value] of formData.entries()) {
+      formEntries[key] = value as string | File;
+    }
     
-    // RSVP specific fields
-    const rsvpAttending = formData.get('rsvp_attending') as string;
-    const rsvpName = formData.get('rsvp_name') as string;
-    const rsvpPlusOne = formData.get('rsvp_plus_one') as string;
-    const rsvpGuestCount = formData.get('rsvp_guest_count') as string;
-    const favoriteSong = formData.get('favorite_song') as string;
+    const {
+      name = '',
+      to_email = 'engagementzeyadrawan@gmail.com',
+      message = '',
+      message_type = 'normal',
+      image = null,
+      rsvp_attending = '',
+      rsvp_name = '',
+      rsvp_plus_one = '',
+      rsvp_guest_count = '',
+      favorite_song = ''
+    } = formEntries;
 
     // Validate required fields
-    if (!name?.trim()) {
+    if (typeof name !== 'string' || !name.trim()) {
       return Response.json(
         { success: false, message: 'Please enter your name' },
         { status: 400 }
       );
     }
 
-    // Email configuration - using environment variables
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const recipientEmail = process.env.CONTACT_EMAIL || toEmail;
+    const recipientEmail = process.env.CONTACT_EMAIL || (to_email as string);
+    let htmlContent = '';
+    let subject = '';
+    let attachments: any[] = [];
 
-    // Validate environment variables
-    if (!smtpUser || !smtpPass) {
-      return Response.json(
-        { success: false, message: 'Email service not configured. Missing SMTP credentials.' },
-        { status: 500 }
-      );
+    // Process image if provided
+    if (image instanceof File) {
+      const imageBytes = await image.arrayBuffer();
+      const buffer = Buffer.from(imageBytes);
+      const filename = `message-${Date.now()}.png`;
+      const imagePath = path.join(UPLOADS_DIR, filename);
+
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      await fs.writeFile(imagePath, buffer);
+
+      const imageUrl = `/uploads/${filename}`;
+      const imageCid = `handwritten-message-${Date.now()}`;
+      
+      attachments.push({
+        filename: image.name || 'handwritten-message.png',
+        content: buffer,
+        cid: imageCid,
+      });
+
+      // Save to submissions.json if needed
+      if (message_type === 'handwritten') {
+        await saveToSubmissions(name.toString(), imageUrl);
+      }
     }
 
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
+    // Build email content based on message type
+    if (message_type === 'rsvp' || rsvp_attending) {
+      subject = `RSVP Response from ${rsvp_name || name}`;
+      const attendingStatus = rsvp_attending === 'yes' ? 'Yes, attending!' : 'Not attending';
+      const attendingColor = rsvp_attending === 'yes' ? '#10b981' : '#ef4444';
+      
+      htmlContent = buildRsvpTemplate({
+        name: rsvp_name?.toString() || name.toString(),
+        attendingStatus,
+        attendingColor,
+        guestCount: rsvp_guest_count?.toString(),
+        plusOne: rsvp_plus_one?.toString(),
+        favoriteSong: favorite_song?.toString(),
+      });
+    } else if (message_type === 'handwritten' || image) {
+      subject = `Handwritten Message from ${name}`;
+      htmlContent = buildHandwrittenTemplate({
+        name: name.toString(),
+        message: message?.toString(),
+        hasImage: !!image,
+        imageCid: attachments[0]?.cid
+      });
+    } else {
+      subject = `Message from ${name}`;
+      htmlContent = buildMessageTemplate({
+        name: name.toString(),
+        message: message?.toString()
+      });
+    }
+
+    // Send email
+    await sendEmail({
+      to: recipientEmail,
+      subject,
+      html: htmlContent,
+      from: `"${name}" <${process.env.SMTP_USER}>`,
+      attachments
     });
 
-    // Verify SMTP connection/auth before attempting to send
-    try {
-      await transporter.verify();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'SMTP verification failed';
-      console.error('SMTP verify error:', err);
-      return Response.json(
-        { success: false, message: `Email service error: ${msg}` },
-        { status: 500 }
-      );
+    return Response.json({ 
+      success: true, 
+      message: 'Message sent successfully!'
+    });
+
+  } catch (error: any) {
+    console.error('Error processing request:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      response: error.response,
+    });
+
+    let errorMessage = 'Failed to send message. Please try again later.';
+    
+    if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
+      errorMessage = 'Could not connect to email server. Please try again later.';
+    } else if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your email settings.';
+    } else if (error.responseCode === 550) {
+      errorMessage = 'Email address not found or rejected by server.';
     }
+    
+    return Response.json(
+      { 
+        success: false, 
+        message: errorMessage,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function saveToSubmissions(name: string, imageUrl: string) {
+  try {
+    let submissions = [];
+    try {
+      const fileData = await fs.readFile(DATA_FILE, 'utf-8');
+      if (fileData) {
+        submissions = JSON.parse(fileData);
+      }
+    } catch (error) {
+      console.log('Creating new submissions file');
+    }
+
+    const userSubmissionIndex = submissions.findIndex(
+      (sub: any) => sub.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (userSubmissionIndex !== -1) {
+      submissions[userSubmissionIndex].handwrittenMessageUrl = imageUrl;
+      submissions[userSubmissionIndex].timestamp = new Date().toISOString();
+    } else {
+      submissions.push({
+        name,
+        handwrittenMessageUrl: imageUrl,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await fs.writeFile(DATA_FILE, JSON.stringify(submissions, null, 2));
+  } catch (error) {
+    console.error('Error saving submission:', error);
+  }
+}
+
+function buildRsvpTemplate({
+  name,
+  attendingStatus,
+  attendingColor,
+  guestCount,
+  plusOne,
+  favoriteSong
+}: {
+  name: string;
+  attendingStatus: string;
+  attendingColor: string;
+  guestCount?: string;
+  plusOne?: string;
+  favoriteSong?: string;
+}) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px;">
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #4f46e5;">
+          <h1 style="color: #4f46e5; margin: 0; font-size: 28px;">New RSVP Response</h1>
+        </div>
+        
+        <div style="background-color: ${attendingColor}; color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
+          <h2 style="margin: 0; font-size: 24px;">${attendingStatus}</h2>
+        </div>
+        
+        ${attendingStatus === 'Yes, attending!' ? `
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #10b981;">
+            <h3 style="color: #1f2937; margin-top: 0; font-size: 20px;">Guest Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: bold; width: 40%;">Name:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${name}</td>
+              </tr>
+              ${guestCount ? `
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Number of Guests:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${guestCount}</td>
+              </tr>
+              ` : ''}
+              ${plusOne ? `
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Plus One:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${plusOne}</td>
+              </tr>
+              ` : ''}
+              ${favoriteSong ? `
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Favorite Song:</td>
+                <td style="padding: 8px 0; color: #1f2937; font-style: italic;">"${favoriteSong}"</td>
+              </tr>
+              ` : ''}
+            </table>
+          </div>
+        ` : `
+          <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+            <p style="color: #1f2937; margin: 0;">We're sorry you won't be able to join us, but we appreciate you letting us know!</p>
+          </div>
+        `}
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
+          <p style="margin: 0;">This is an automated message from the engagement website.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function buildHandwrittenTemplate({
+  name,
+  message,
+  hasImage,
+  imageCid
+}: {
+  name: string;
+  message?: string;
+  hasImage: boolean;
+  imageCid?: string;
+}) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px;">
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #4f46e5;">
+          <h1 style="color: #4f46e5; margin: 0; font-size: 28px;">You've Received a Handwritten Message!</h1>
+        </div>
+        
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+          <p style="margin: 0; color: #1f2937;">
+            <strong style="color: #4f46e5;">From:</strong> ${name}
+          </p>
+        </div>
+        
+        ${hasImage ? `
+          <div style="margin: 20px 0; padding: 20px; background: #f9fafb; border-radius: 8px; text-align: center;">
+            <img src="cid:${imageCid}" alt="Handwritten message from ${name}" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+          </div>
+        ` : ''}
+        
+        ${message ? `
+          <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #3b82f6;">
+            <p style="margin: 0; color: #1f2937;">${message}</p>
+          </div>
+        ` : ''}
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
+          <p style="margin: 0;">This is an automated message from the engagement website.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function buildMessageTemplate({
+  name,
+  message = 'No message content provided.'
+}: {
+  name: string;
+  message?: string;
+}) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px;">
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #4f46e5;">
+          <h1 style="color: #4f46e5; margin: 0; font-size: 28px;">You've Received a New Message!</h1>
+        </div>
+        
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+          <p style="margin: 0; color: #1f2937;">
+            <strong style="color: #4f46e5;">From:</strong> ${name}
+          </p>
+        </div>
+        
+        <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; margin-bottom: 20px;">
+          <p style="margin: 0; color: #1f2937; line-height: 1.6; font-size: 16px; white-space: pre-wrap;">${message}</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
+          <p style="margin: 0;">This is an automated message from the engagement website.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
     // Process image attachment if provided
     let attachments: any[] = [];
@@ -275,48 +550,16 @@ export async function POST(request: Request) {
             </div>
           </div>
         </body>
-        </html>
-      `;
-    }
-
-    // Send email
-    let info;
-    try {
-      info = await transporter.sendMail({
-        from: `"Othman & Rita Engagement" <${smtpUser}>`,
-        to: recipientEmail,
-        subject: subject,
-        html: htmlContent,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      });
-    } catch (err: any) {
-      console.error('Error sending email:', err);
-      const message = (err && (err.message || err.toString())) || 'Unknown email error';
-      return Response.json(
-        {
-          success: false,
-          message: 'Failed to send email',
-          error: message,
-        },
-        { status: 500 }
-      );
-    }
-
-    return Response.json({ 
-      success: true, 
-      message: 'Message sent successfully!',
-      messageId: info.messageId
-    });
-
-  } catch (error) {
-    console.error('Error processing request:', error);
-    return Response.json(
-      { 
-        success: false, 
-        message: 'Failed to send message. Please try again later.',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
   }
+  
+  return Response.json(
+    { 
+      success: false, 
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    },
+    { status: 500 }
+  );
 }
+
+// ... (rest of the code remains the same)
