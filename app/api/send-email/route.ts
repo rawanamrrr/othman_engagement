@@ -3,7 +3,7 @@ import { sendEmail } from '@/lib/email-service';
 import path from 'path';
 import fs from 'fs/promises';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const UPLOADS_DIR = path.join('/tmp', 'uploads');
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
 export const runtime = 'nodejs';
@@ -112,16 +112,6 @@ export async function POST(request: NextRequest) {
           cid: imageCid,
         });
 
-        // Save to submissions.json if needed
-        if (message_type === 'handwritten') {
-          try {
-            await saveToSubmissions(name.toString(), imageUrl);
-            console.log('Submission saved successfully');
-          } catch (saveError) {
-            console.error('Error saving submission:', saveError);
-            // Don't fail the entire request if just the submission save fails
-          }
-        }
       } catch (error) {
         console.error('Error processing image:', error);
         const errorMessage = error instanceof Error ? error.message : 'Failed to process image';
