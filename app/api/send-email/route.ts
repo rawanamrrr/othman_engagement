@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
       name: name?.toString().substring(0, 10) + '...',
       message_type,
       hasImage: Boolean(image),
-      imageSize: image instanceof File ? `${(image.size / 1024).toFixed(2)}KB` : 'N/A'
+      imageSize:
+        typeof File !== 'undefined' && image instanceof File
+          ? `${(image.size / 1024).toFixed(2)}KB`
+          : 'N/A',
     });
 
     // Validate required fields
@@ -71,7 +74,9 @@ export async function POST(request: NextRequest) {
     let imageCid = '';
 
     // Process image if provided
-    if (image instanceof File) {
+    const isImageFile =
+      typeof File !== 'undefined' && image instanceof File;
+    if (isImageFile) {
       try {
         // Validate file type
         const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
