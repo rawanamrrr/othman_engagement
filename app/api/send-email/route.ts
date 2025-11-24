@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { sendEmail } from '@/lib/email-service';
 import path from 'path';
 import fs from 'fs/promises';
+import { readSubmissions, writeSubmissions } from '../rsvps/route';
 
 const UPLOADS_DIR = path.join('/tmp', 'uploads');
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
@@ -181,13 +182,9 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       };
 
-      await fetch(`${process.env.NEXT_PUBLIC_URL}/api/rsvps`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submissionData),
-      });
+      const submissions = await readSubmissions();
+      submissions.push(submissionData);
+      await writeSubmissions(submissions);
 
       return Response.json({ 
         success: true, 

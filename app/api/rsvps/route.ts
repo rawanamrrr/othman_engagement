@@ -5,7 +5,7 @@ import path from 'path';
 
 const dataFilePath = path.join(process.cwd(), 'data', 'submissions.json');
 
-async function readSubmissions() {
+export async function readSubmissions() {
   try {
     const data = await fs.readFile(dataFilePath, 'utf-8');
     return JSON.parse(data);
@@ -15,7 +15,7 @@ async function readSubmissions() {
   }
 }
 
-async function writeSubmissions(data: any) {
+export async function writeSubmissions(data: any) {
   await fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
