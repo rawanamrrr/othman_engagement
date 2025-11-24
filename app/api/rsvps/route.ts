@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
-const dataFilePath = path.join('/tmp', 'submissions.json');
+const dataFilePath = path.join(process.cwd(), 'data', 'submissions.json');
 
 export async function readSubmissions() {
   try {

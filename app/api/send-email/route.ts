@@ -3,6 +3,7 @@ import { sendEmail } from '@/lib/email-service';
 import path from 'path';
 import fs from 'fs/promises';
 import { readSubmissions, writeSubmissions } from '../rsvps/route';
+import { uploadImage } from '@/lib/image-service';
 
 const UPLOADS_DIR = path.join('/tmp', 'uploads');
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
@@ -87,24 +88,7 @@ export async function POST(request: NextRequest) {
         const imageBytes = await image.arrayBuffer();
         const buffer = Buffer.from(imageBytes);
         const filename = `message-${Date.now()}.${image.type.split('/')[1] || 'png'}`;
-        const imagePath = path.join(UPLOADS_DIR, filename);
-
-        console.log(`Attempting to save image to: ${imagePath}`);
-        
-        try {
-          // Ensure uploads directory exists
-          await fs.mkdir(UPLOADS_DIR, { recursive: true });
-          console.log(`Upload directory verified/created at: ${UPLOADS_DIR}`);
-          
-          // Write the file
-          await fs.writeFile(imagePath, buffer);
-          console.log(`Image successfully saved to: ${imagePath}`);
-        } catch (fsError) {
-          console.error('Filesystem error during image save:', fsError);
-          throw new Error(`Failed to save image: ${fsError instanceof Error ? fsError.message : 'Unknown error'}`);
-        }
-
-        imageUrl = `/uploads/${filename}`;
+        imageUrl = await uploadImage(buffer, filename);
         imageCid = `handwritten-message-${Date.now()}`;
         
         attachments.push({

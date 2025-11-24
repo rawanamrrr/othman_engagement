@@ -23,6 +23,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# misc
+.DS_Store
+*.pem
+
+# uploads
+public/uploads/
