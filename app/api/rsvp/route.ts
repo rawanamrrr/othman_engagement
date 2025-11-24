@@ -1,27 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { rsvps } from '../rsvps/route';
+import fs from 'fs/promises';
+import path from 'path';
+
+const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
 export async function POST(req: NextRequest) {
   try {
     const { name, guests, guestNames, favoriteSong, isAttending, handwrittenMessage } = await req.json();
 
-    // Create a new RSVP entry
+    // --- Start: New file writing logic ---
+    let handwrittenMessageUrl = '';
+    if (handwrittenMessage) {
+      const base64Data = handwrittenMessage.replace(/^data:image\/png;base64,/, "");
+      const filename = `message-${Date.now()}.png`;
+      const imagePath = path.join(process.cwd(), 'public', 'uploads', filename);
+      await fs.mkdir(path.dirname(imagePath), { recursive: true });
+      await fs.writeFile(imagePath, base64Data, 'base64');
+      handwrittenMessageUrl = `/uploads/${filename}`;
+    }
+
     const newSubmission = {
-      id: `rsvp-${Date.now()}`,
       name,
-      guests: parseInt(guests) || 0,
-      guestNames: guestNames || '',
-      favoriteSong: favoriteSong || '',
-      isAttending: isAttending === true || isAttending === 'true',
+      guests,
+      guestNames,
+      favoriteSong,
+      isAttending,
+      handwrittenMessageUrl,
       timestamp: new Date().toISOString(),
-      // For now, we'll just store a placeholder for the handwritten message
-      // In a real app, you'd upload this to a file storage service
-      handwrittenMessageUrl: handwrittenMessage ? 'stored-in-memory' : ''
     };
 
-    // Add to in-memory array
-    rsvps.push(newSubmission);
+    let submissions = [];
+    try {
+      const fileData = await fs.readFile(DATA_FILE, 'utf-8');
+      if (fileData) {
+        submissions = JSON.parse(fileData);
+      }
+    } catch (error) {
+      console.log('submissions.json not found or empty, creating a new one.');
+    }
+
+    submissions.push(newSubmission);
+
+    const fileWritePromise = fs.writeFile(DATA_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
 
     // --- Email Sending Logic ---
     const sendEmailPromise = (async () => {
@@ -67,30 +88,13 @@ export async function POST(req: NextRequest) {
       await transporter.sendMail(mailOptions);
     })();
 
-    try {
-      await sendEmailPromise;
-      return NextResponse.json({ 
-        success: true,
-        message: 'RSVP submitted successfully',
-        data: newSubmission 
-      });
-    } catch (emailError) {
-      console.error('Email sending failed, but RSVP was saved:', emailError);
-      // Still return success since the RSVP was saved
-      return NextResponse.json({ 
-        success: true,
-        message: 'RSVP submitted, but there was an issue sending the confirmation email',
-        data: newSubmission
-      });
-    }
+    await Promise.all([fileWritePromise, sendEmailPromise]);
+
+    return NextResponse.json({ message: 'RSVP submitted successfully' });
   } catch (error) {
     console.error('RSVP submission error:', error);
     return NextResponse.json(
-      { 
-        success: false,
-        message: 'Error submitting RSVP',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { message: 'Error submitting RSVP' },
       { status: 500 }
     );
   }

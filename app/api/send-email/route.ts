@@ -64,9 +64,8 @@ export async function POST(request: NextRequest) {
     let subject = '';
     let attachments: Array<{
       filename: string;
-      content?: Buffer;
-      path?: string;
-      cid?: string;
+      content: Buffer;
+      cid: string;
     }> = [];
     let imageUrl = '';
     let imageCid = '';
@@ -90,10 +89,12 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(imageBytes);
         const filename = `message-${Date.now()}.${image.type.split('/')[1] || 'png'}`;
         imageUrl = await uploadImage(buffer, filename);
-
+        imageCid = `handwritten-message-${Date.now()}`;
+        
         attachments.push({
           filename: image.name || `handwritten-message-${Date.now()}.${image.type.split('/')[1] || 'png'}`,
-          path: imageUrl, // Use the absolute path for the attachment
+          content: buffer,
+          cid: imageCid,
         });
 
       } catch (error) {
@@ -130,7 +131,8 @@ export async function POST(request: NextRequest) {
         htmlContent = buildHandwrittenTemplate({
           name: name.toString(),
           message: message ? message.toString() : undefined,
-          imageUrl
+          hasImage: !!image,
+          imageCid
         });
       } else {
         subject = `Message from ${name}`;
@@ -290,11 +292,13 @@ function buildRsvpTemplate({
 function buildHandwrittenTemplate({
   name,
   message,
-  imageUrl
+  hasImage,
+  imageCid
 }: {
   name: string;
   message?: string;
-  imageUrl?: string;
+  hasImage: boolean;
+  imageCid?: string;
 }) {
   return `
     <!DOCTYPE html>
@@ -315,9 +319,9 @@ function buildHandwrittenTemplate({
           </p>
         </div>
         
-        ${imageUrl ? `
+        ${hasImage ? `
           <div style="margin: 20px 0; padding: 20px; background: #f9fafb; border-radius: 8px; text-align: center;">
-            <p>This message includes a handwritten note. Please see the attachment.</p>
+            <img src="cid:${imageCid}" alt="Handwritten message from ${name}" style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
           </div>
         ` : ''}
         

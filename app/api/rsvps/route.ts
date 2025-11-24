@@ -1,66 +1,32 @@
 import { NextResponse } from 'next/server';
-
 import fs from 'fs/promises';
 import path from 'path';
 
-const dataFilePath = path.join('/tmp', 'submissions.json');
-
-export async function readSubmissions() {
-  try {
-    const data = await fs.readFile(dataFilePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // If the file doesn't exist, return an empty array
-    return [];
-  }
-}
-
-export async function writeSubmissions(data: any) {
-  await fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
-}
+const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
 export async function GET() {
   try {
-    const submissions = await readSubmissions();
-    return NextResponse.json(submissions);
+    // Read the existing data
+    const fileData = await fs.readFile(DATA_FILE, 'utf-8');
+    const data = JSON.parse(fileData);
+    
+    // Transform the data to match our RSVP interface
+    const rsvps = data.map((item: any, index: number) => ({
+      id: `rsvp-${index + 1}`,
+      name: item.name || 'Unknown',
+      guests: parseInt(item.guests) || 0,
+      guestNames: item.guestNames || '',
+      favoriteSong: item.favoriteSong || '',
+      isAttending: item.isAttending === true || item.isAttending === 'true',
+      createdAt: item.timestamp || new Date().toISOString(),
+      handwrittenMessageUrl: item.handwrittenMessageUrl || '',
+    }));
+
+    return NextResponse.json(rsvps);
   } catch (error) {
     console.error('Error reading RSVPs:', error);
     return NextResponse.json(
       { error: 'Failed to fetch RSVPs' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const data = await request.json();
-    
-    if (!data.name) {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
-    }
-    
-    const submissions = await readSubmissions();
-    const newSubmission = {
-      ...data,
-      id: Date.now().toString(), // Add a unique ID
-      createdAt: new Date().toISOString(),
-    };
-    
-    submissions.push(newSubmission);
-    await writeSubmissions(submissions);
-    
-    return NextResponse.json(
-      { success: true, data: newSubmission },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Error saving RSVP:', error);
-    return NextResponse.json(
-      { error: 'Failed to save RSVP' },
       { status: 500 }
     );
   }

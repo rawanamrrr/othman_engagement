@@ -51,7 +51,7 @@ async function readDataFile(): Promise<SubmissionData> {
     return JSON.parse(data);
   } catch (error) {
     // If file doesn't exist, return default structure
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    if (error.code === 'ENOENT') {
       return { rsvps: [], messages: [] };
     }
     throw error;
