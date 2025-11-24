@@ -53,5 +53,15 @@
     "isAttending": true,
     "handwrittenMessageUrl": "",
     "timestamp": "2025-11-23T23:09:18.737Z"
+  },
+  {
+    "name": "f",
+    "handwrittenMessageUrl": "/uploads/message-1763982782497.png",
+    "timestamp": "2025-11-24T11:13:04.793Z"
+  },
+  {
+    "name": "j",
+    "handwrittenMessageUrl": "/uploads/message-1763983504747.png",
+    "timestamp": "2025-11-24T11:25:07.129Z"
   }
 ]
