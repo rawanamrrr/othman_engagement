@@ -7,11 +7,29 @@ export { POST } from '../send-email/route';
 
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
+// Function to read submissions from the JSON file
+export async function readSubmissions() {
+  try {
+    const fileData = await fs.readFile(DATA_FILE, 'utf-8');
+    return JSON.parse(fileData);
+  } catch (error) {
+    // If the file doesn't exist, return an empty array
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return [];
+    }
+    // For other errors, re-throw
+    throw error;
+  }
+}
+
+// Function to write submissions to the JSON file
+export async function writeSubmissions(data: any) {
+  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+}
+
 export async function GET() {
   try {
-    // Read the existing data
-    const fileData = await fs.readFile(DATA_FILE, 'utf-8');
-    const data = JSON.parse(fileData);
+    const data = await readSubmissions();
     
     // Transform the data to match our RSVP interface
     const rsvps = data.map((item: any, index: number) => ({

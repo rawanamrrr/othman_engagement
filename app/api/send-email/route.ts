@@ -180,17 +180,23 @@ export async function POST(request: NextRequest) {
         message: err.message,
         code: err.code,
         responseCode: err.responseCode,
-        stack: err.stack
+        stack: err.stack,
       });
 
       let errorMessage = 'Failed to send message. Please try again later.';
-      if (err.code === 'ECONNECTION' || err.code === 'ETIMEDOUT') {
-        errorMessage = 'Could not connect to email server. Please try again later.';
+      if (err.message.includes('SMTP credentials not configured')) {
+        errorMessage =
+          'The email service is not configured correctly. Please contact the site administrator.';
+      } else if (err.code === 'ECONNECTION' || err.code === 'ETIMEDOUT') {
+        errorMessage =
+          'Could not connect to email server. Please try again later.';
       } else if (err.code === 'EAUTH') {
-        errorMessage = 'Authentication failed. Please check your email settings.';
+        errorMessage =
+          'Authentication failed. Please check your email settings.';
       } else if (err.responseCode === 550) {
         errorMessage = 'Email address not found or rejected by server.';
       }
+
 
       return Response.json(
         { 
@@ -202,11 +208,15 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
+    console.error('Unexpected error in send-email route:', error);
     return Response.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'An unexpected error occurred',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+        error:
+          process.env.NODE_ENV === 'development'
+            ? (error as Error).message
+            : undefined,
       },
       { status: 500 }
     );
