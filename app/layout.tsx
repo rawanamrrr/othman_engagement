@@ -4,7 +4,6 @@ import type React from "react"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Playfair_Display } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { RomanticAudio } from "@/components/romantic-audio"
 import { LanguageProvider } from "@/contexts/LanguageContext"
@@ -84,8 +83,7 @@ export default function RootLayout({
             <RomanticAudio />
             <Footer />
           </Suspense>
-          <Analytics />
-        </LanguageProvider>
+                  </LanguageProvider>
       </body>
     </html>
   )

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Re-export the POST handler from the send-email route
+export { POST } from '../send-email/route';
+
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
 
 export async function GET() {
