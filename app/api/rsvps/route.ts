@@ -1,12 +1,28 @@
 import { NextResponse } from 'next/server';
 
-// In-memory storage (temporary solution)
-let rsvps: any[] = [];
+import fs from 'fs/promises';
+import path from 'path';
+
+const dataFilePath = path.join(process.cwd(), 'data', 'submissions.json');
+
+async function readSubmissions() {
+  try {
+    const data = await fs.readFile(dataFilePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // If the file doesn't exist, return an empty array
+    return [];
+  }
+}
+
+async function writeSubmissions(data: any) {
+  await fs.writeFile(dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+}
 
 export async function GET() {
   try {
-    // Return the in-memory RSVPs array
-    return NextResponse.json(rsvps);
+    const submissions = await readSubmissions();
+    return NextResponse.json(submissions);
   } catch (error) {
     console.error('Error reading RSVPs:', error);
     return NextResponse.json(
@@ -20,7 +36,6 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
     
-    // Basic validation
     if (!data.name) {
       return NextResponse.json(
         { error: 'Name is required' },
@@ -28,17 +43,18 @@ export async function POST(request: Request) {
       );
     }
     
-    // Add timestamp
-    const newRsvp = {
+    const submissions = await readSubmissions();
+    const newSubmission = {
       ...data,
-      submittedAt: new Date().toISOString()
+      id: Date.now().toString(), // Add a unique ID
+      createdAt: new Date().toISOString(),
     };
     
-    // Add to our in-memory array
-    rsvps.push(newRsvp);
+    submissions.push(newSubmission);
+    await writeSubmissions(submissions);
     
     return NextResponse.json(
-      { success: true, data: newRsvp },
+      { success: true, data: newSubmission },
       { status: 201 }
     );
   } catch (error) {
@@ -49,6 +65,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-// Export the rsvps array so it can be used in other API routes
-export { rsvps };

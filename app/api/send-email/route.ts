@@ -174,6 +174,21 @@ export async function POST(request: NextRequest) {
         attachments
       });
 
+      // After sending email, save the submission
+      const submissionData = {
+        name: name.toString(),
+        handwrittenMessageUrl: imageUrl,
+        timestamp: new Date().toISOString(),
+      };
+
+      await fetch(`${process.env.NEXT_PUBLIC_URL}/api/rsvps`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionData),
+      });
+
       return Response.json({ 
         success: true, 
         message: 'Message sent successfully!'
@@ -205,15 +220,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    return Response.json(
-      { 
-        success: false, 
-        message: 'An unexpected error occurred',
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
-      },
-      { status: 500 }
-    );
   } catch (error) {
     return Response.json(
       { 
@@ -226,48 +232,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function saveToSubmissions(name: string, imageUrl: string): Promise<void> {
-  try {
-    let submissions: Submission[] = [];
-    
-    // Read existing submissions if file exists
-    try {
-      const fileData = await fs.readFile(DATA_FILE, 'utf-8');
-      if (fileData) {
-        submissions = JSON.parse(fileData) as Submission[];
-      }
-    } catch (error) {
-      console.log('Creating new submissions file');
-    }
-
-    // Update or add submission
-    const userSubmissionIndex = submissions.findIndex(
-      (sub) => sub.name.toLowerCase() === name.toLowerCase()
-    );
-
-    const submissionData: Submission = {
-      name,
-      handwrittenMessageUrl: imageUrl,
-      timestamp: new Date().toISOString(),
-    };
-
-    if (userSubmissionIndex !== -1) {
-      submissions[userSubmissionIndex] = {
-        ...submissions[userSubmissionIndex],
-        ...submissionData
-      };
-    } else {
-      submissions.push(submissionData);
-    }
-
-    // Write back to file
-    await fs.writeFile(DATA_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error saving submission:', error);
-    // Re-throw to be handled by the caller
-    throw new Error('Failed to save submission');
-  }
-}
 
 function buildRsvpTemplate({
   name,
