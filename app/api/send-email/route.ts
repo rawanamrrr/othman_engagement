@@ -165,19 +165,24 @@ export async function POST(request: NextRequest) {
       });
 
       // After sending email, save the submission
-      const submissionData = {
-        name: name.toString(),
-        handwrittenMessageUrl: imageUrl,
-        timestamp: new Date().toISOString(),
-      };
+      try {
+        const submissionData = {
+          name: name.toString(),
+          handwrittenMessageUrl: imageUrl,
+          timestamp: new Date().toISOString(),
+        };
 
-      const submissions = await readSubmissions();
-      submissions.push(submissionData);
-      await writeSubmissions(submissions);
+        const submissions = await readSubmissions();
+        submissions.push(submissionData);
+        await writeSubmissions(submissions);
+      } catch (submissionError) {
+        console.error('Failed to save submission:', submissionError);
+        // Don't block the success response if submission fails
+      }
 
-      return Response.json({ 
-        success: true, 
-        message: 'Message sent successfully!'
+      return Response.json({
+        success: true,
+        message: 'Message sent successfully!',
       });
     } catch (error) {
       const err = error as Error & { code?: string; responseCode?: number };
