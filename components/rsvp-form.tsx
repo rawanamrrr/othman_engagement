@@ -22,40 +22,18 @@ export default function RsvpForm() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    try {
-      const res = await fetch("/api/rsvps", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          name, 
-          guests: Number(guests) || 0, 
-          guestNames, 
-          favoriteSong, 
-          isAttending 
-        }),
-      });
+    const res = await fetch("/api/rsvp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name, guests, guestNames, favoriteSong, isAttending }),
+    })
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit RSVP');
-      }
-
-      setSubmitStatus("success");
-      // Reset form
-      if (isAttending) {
-        setName("");
-        setGuests("");
-        setGuestNames("");
-        setFavoriteSong("");
-      } else {
-        setName("");
-      }
-    } catch (error) {
-      console.error('RSVP submission error:', error);
-      setSubmitStatus("error");
+    if (res.ok) {
+      setSubmitStatus("success")
+    } else {
+      setSubmitStatus("error")
     }
 
     setIsSubmitting(false)
@@ -99,7 +77,7 @@ export default function RsvpForm() {
                     placeholder={t('favoriteSongPlaceholder')}
                   />
                 </div>
-                              </>
+              </>
             ) : (
               <div>
                 <div className="mb-4">

@@ -1,98 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import fs from 'fs/promises';
-import path from 'path';
-
-const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
+import clientPromise from '../../../lib/mongodb';
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, guests, guestNames, favoriteSong, isAttending, handwrittenMessage } = await req.json();
+    const { name, guests, guestNames, favoriteSong, isAttending } = await req.json();
 
-    // --- Start: New file writing logic ---
-    let handwrittenMessageUrl = '';
-    if (handwrittenMessage) {
-      const base64Data = handwrittenMessage.replace(/^data:image\/png;base64,/, "");
-      const filename = `message-${Date.now()}.png`;
-      const imagePath = path.join(process.cwd(), 'public', 'uploads', filename);
-      await fs.mkdir(path.dirname(imagePath), { recursive: true });
-      await fs.writeFile(imagePath, base64Data, 'base64');
-      handwrittenMessageUrl = `/uploads/${filename}`;
+    // Email configuration - using environment variables
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const recipientEmail = process.env.CONTACT_EMAIL;
+
+    if (!smtpUser || !smtpPass) {
+      return NextResponse.json(
+        { message: 'Email service not configured. Missing SMTP credentials.' },
+        { status: 500 }
+      );
     }
 
-    const newSubmission = {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+
+    const attendingStatus = isAttending ? 'Yes, attending!' : 'Not attending';
+    const attendingColor = isAttending ? '#10b981' : '#ef4444';
+
+    const mailOptions = {
+      from: `"Othman & Rita Engagement" <${smtpUser}>`,
+      to: recipientEmail,
+      subject: `RSVP Response from ${name}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px;">
+            <!-- Header -->
+            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #4f46e5;">
+              <h1 style="color: #4f46e5; margin: 0; font-size: 28px;">New RSVP Response</h1>
+            </div>
+            
+            <!-- RSVP Status -->
+            <div style="background-color: ${attendingColor}; color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: center;">
+              <h2 style="margin: 0; font-size: 24px;">${attendingStatus}</h2>
+            </div>
+            
+            ${isAttending ? `
+              <!-- Attending Details -->
+              <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #10b981;">
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 20px;">Guest Information</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-weight: bold; width: 40%;">Name:</td>
+                    <td style="padding: 8px 0; color: #1f2937;">${name}</td>
+                  </tr>
+                  ${guests ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Number of Guests:</td>
+                    <td style="padding: 8px 0; color: #1f2937;">${guests}</td>
+                  </tr>
+                  ` : ''}
+                  ${guestNames ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Guest Names:</td>
+                    <td style="padding: 8px 0; color: #1f2937;">${guestNames}</td>
+                  </tr>
+                  ` : ''}
+                  ${favoriteSong ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Favorite Song:</td>
+                    <td style="padding: 8px 0; color: #1f2937; font-style: italic;">"${favoriteSong}"</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+            ` : `
+              <!-- Not Attending -->
+              <div style="background-color: #fef2f2; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 20px; margin-bottom: 15px;">Guest Information</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-weight: bold; width: 40%;">Name:</td>
+                    <td style="padding: 8px 0; color: #1f2937; font-size: 18px; font-weight: 500;">${name}</td>
+                  </tr>
+                </table>
+                <p style="color: #1f2937; margin: 15px 0 0 0; font-style: italic;">We're sorry you won't be able to join us, but we appreciate you letting us know!</p>
+              </div>
+            `}
+            
+            <!-- Footer -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
+              <p style="margin: 0;">This is an automated message from the engagement website.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // Save to database
+    const client = await clientPromise;
+    const db = client.db('engagement');
+    await db.collection('rsvps').insertOne({
       name,
       guests,
       guestNames,
       favoriteSong,
       isAttending,
-      handwrittenMessageUrl,
-      timestamp: new Date().toISOString(),
-    };
-
-    let submissions = [];
-    try {
-      const fileData = await fs.readFile(DATA_FILE, 'utf-8');
-      if (fileData) {
-        submissions = JSON.parse(fileData);
-      }
-    } catch (error) {
-      console.log('submissions.json not found or empty, creating a new one.');
-    }
-
-    submissions.push(newSubmission);
-
-    const fileWritePromise = fs.writeFile(DATA_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
-
-    // --- Email Sending Logic ---
-    const sendEmailPromise = (async () => {
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-      const recipientEmail = process.env.CONTACT_EMAIL;
-
-      if (!smtpUser || !smtpPass) {
-        throw new Error('Email service not configured. Missing SMTP credentials.');
-      }
-
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-
-      const attendingStatus = isAttending ? 'Yes, attending!' : 'Not attending';
-      const attendingColor = isAttending ? '#10b981' : '#ef4444';
-
-      const mailOptions = {
-        from: `"Othman & Rita Engagement" <${smtpUser}>`,
-        to: recipientEmail,
-        subject: `RSVP Response from ${name}`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
-            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px;">
-              <!-- ... (email content) ... -->
-            </div>
-          </body>
-          </html>
-        `,
-      };
-
-      await transporter.sendMail(mailOptions);
-    })();
-
-    await Promise.all([fileWritePromise, sendEmailPromise]);
+      createdAt: new Date(),
+    });
 
     return NextResponse.json({ message: 'RSVP submitted successfully' });
   } catch (error) {
-    console.error('RSVP submission error:', error);
+    console.error('RSVP email error:', error);
     return NextResponse.json(
       { message: 'Error submitting RSVP' },
       { status: 500 }

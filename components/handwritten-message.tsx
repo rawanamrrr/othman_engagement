@@ -8,8 +8,6 @@ export default function HandwrittenMessage() {
   const t = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [lastX, setLastX] = useState(0);
-  const [lastY, setLastY] = useState(0);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [name, setName] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -18,7 +16,6 @@ export default function HandwrittenMessage() {
   const [currentWidth, setCurrentWidth] = useState(3);
   const [history, setHistory] = useState<string[]>([]);
 
-  // Pen color options with translations
   const penColors = [
     { color: '#000000', name: t('colorBlack') },
     { color: '#EF4444', name: t('colorRed') },
@@ -28,7 +25,6 @@ export default function HandwrittenMessage() {
     { color: '#F59E0B', name: t('colorOrange') },
   ];
 
-  // Pen width options with translations
   const penWidths = [
     { width: 2, name: t('widthThin') },
     { width: 3, name: t('widthMedium') },
@@ -36,25 +32,21 @@ export default function HandwrittenMessage() {
     { width: 8, name: t('widthBold') },
   ];
 
-  // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size
     const setCanvasSize = (isInitial = false) => {
       const container = canvas.parentElement;
       if (container) {
         const rect = container.getBoundingClientRect();
-        const width = Math.min(1000, rect.width * 0.95); // Increased max width
-        // Only update canvas dimensions if they actually changed significantly
+        const width = Math.min(1000, rect.width * 0.95);
         if (Math.abs(canvas.width - width) > 5 || canvas.height !== 600) {
           canvas.width = width;
-          canvas.height = 600; // Increased height for larger writing area
+          canvas.height = 600;
         }
         canvas.style.border = '2px solid #e5e7eb';
         canvas.style.borderRadius = '0.5rem';
-        // Only fill background on initial setup, not on resize
         if (isInitial) {
           canvas.style.backgroundColor = 'white';
         }
@@ -64,50 +56,24 @@ export default function HandwrittenMessage() {
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    // Set initial drawing styles
     context.lineWidth = currentWidth;
     context.lineCap = 'round';
     context.lineJoin = 'round';
     context.strokeStyle = currentColor;
-    // Only fill background on initial setup
     context.fillStyle = 'white';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     setCtx(context);
-    setCanvasSize(true); // Initial setup
+    setCanvasSize(true);
 
-    const handleResize = () => setCanvasSize(false); // Resize without clearing
+    const handleResize = () => setCanvasSize(false);
     window.addEventListener('resize', handleResize);
-
-    // Debounced scroll handler to prevent excessive canvas operations
-    let scrollTimeout: NodeJS.Timeout;
-    const handleScroll = () => {
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        // Check if canvas size needs adjustment after scroll
-        const container = canvas.parentElement;
-        if (container) {
-          const rect = container.getBoundingClientRect();
-          const currentWidth = canvas.width;
-          const newWidth = Math.min(1000, rect.width * 0.95);
-          // Only resize if the width actually changed significantly
-          if (Math.abs(currentWidth - newWidth) > 10) {
-            setCanvasSize(false);
-          }
-        }
-      }, 100); // Debounce scroll events
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(scrollTimeout);
     };
   }, []);
 
-  // Update drawing context when color or width changes
   useEffect(() => {
     if (ctx) {
       ctx.strokeStyle = currentColor;
@@ -115,24 +81,21 @@ export default function HandwrittenMessage() {
     }
   }, [currentColor, currentWidth, ctx]);
 
-  // Refs for drawing state
   const points = useRef<Array<{x: number, y: number, pressure: number}>>([]);
   const rafId = useRef<number | null>(null);
   const lastWidth = useRef(currentWidth);
   const hasDrawn = useRef(false);
-  const hasSavedInitialState = useRef(false);
   const canvasStateBeforeDrawing = useRef<ImageData | null>(null);
   const isProcessingStop = useRef(false);
   const hasSavedToHistory = useRef(false);
   const lastTouchTime = useRef(0);
 
   const getPressure = (e: Touch | MouseEvent | React.Touch | React.MouseEvent): number => {
-    // Check if the device supports pressure (like iPad with Apple Pencil)
-    const event = e as any; // Type assertion to access force property
+    const event = e as any;
     if ('force' in event && event.force) {
       return Math.min(Math.max(event.force, 0.1), 1);
     }
-    return 0.5; // Default pressure
+    return 0.5;
   };
 
   const drawSmoothLine = () => {
@@ -146,14 +109,12 @@ export default function HandwrittenMessage() {
     ctx.beginPath();
     ctx.moveTo(pointsToDraw[0].x, pointsToDraw[0].y);
     
-    // Draw a smooth curve through the points
     for (let i = 1; i < pointsToDraw.length - 2; i++) {
       const xc = (pointsToDraw[i].x + pointsToDraw[i + 1].x) / 2;
       const yc = (pointsToDraw[i].y + pointsToDraw[i + 1].y) / 2;
       ctx.quadraticCurveTo(pointsToDraw[i].x, pointsToDraw[i].y, xc, yc);
     }
     
-    // Connect the last two points
     if (pointsToDraw.length > 1) {
       const i = pointsToDraw.length - 2;
       ctx.quadraticCurveTo(
@@ -164,11 +125,9 @@ export default function HandwrittenMessage() {
       );
     }
     
-    // Use the average pressure of the points for the line width
     const avgPressure = pointsToDraw.reduce((sum, p) => sum + p.pressure, 0) / pointsToDraw.length;
     const targetWidth = currentWidth * (0.5 + avgPressure * 0.5);
     
-    // Smooth width transition
     const width = lastWidth.current + (targetWidth - lastWidth.current) * 0.3;
     lastWidth.current = width;
     
@@ -184,54 +143,48 @@ export default function HandwrittenMessage() {
        Touch | React.TouchEvent<HTMLCanvasElement> | 
        { clientX: number; clientY: number }
   ) => {
-  if (!canvasRef.current) return null;
-  
-  const canvas = canvasRef.current;
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  
-  let clientX: number;
-  let clientY: number;
+    if (!canvasRef.current) return null;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX: number;
+    let clientY: number;
 
-  // Handle different event types
-  if ('touches' in e && e.touches) {
-    // It's a TouchEvent with touches array
-    const touch = e.touches[0];
-    clientX = touch.clientX;
-    clientY = touch.clientY;
-  } else if ('clientX' in e) {
-    // It's a MouseEvent, Touch object, or similar
-    clientX = e.clientX;
-    clientY = e.clientY;
-  } else if ('nativeEvent' in e) {
-    // Handle React synthetic events
-    const nativeEvent = e.nativeEvent as MouseEvent | TouchEvent;
-    if ('touches' in nativeEvent && nativeEvent.touches.length > 0) {
-      clientX = nativeEvent.touches[0].clientX;
-      clientY = nativeEvent.touches[0].clientY;
-    } else if ('clientX' in nativeEvent) {
-      clientX = nativeEvent.clientX;
-      clientY = nativeEvent.clientY;
+    if ('touches' in e && e.touches) {
+      const touch = e.touches[0];
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else if ('clientX' in e) {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    } else if ('nativeEvent' in e) {
+      const nativeEvent = e.nativeEvent as MouseEvent | TouchEvent;
+      if ('touches' in nativeEvent && nativeEvent.touches.length > 0) {
+        clientX = nativeEvent.touches[0].clientX;
+        clientY = nativeEvent.touches[0].clientY;
+      } else if ('clientX' in nativeEvent) {
+        clientX = nativeEvent.clientX;
+        clientY = nativeEvent.clientY;
+      } else {
+        return null;
+      }
     } else {
       return null;
     }
-  } else {
-    return null;
-  }
-  
-  const x = (clientX - rect.left) * scaleX;
-  const y = (clientY - rect.top) * scaleY;
-  
-  return { x, y };
-};
+    
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    
+    return { x, y };
+  };
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    // Prevent mouse events if touch event just fired (mobile browsers fire both)
     if ('touches' in e) {
       lastTouchTime.current = Date.now();
     } else {
-      // If this is a mouse event within 500ms of a touch event, ignore it
       if (Date.now() - lastTouchTime.current < 500) {
         return;
       }
@@ -243,7 +196,6 @@ export default function HandwrittenMessage() {
     const coords = getCanvasCoordinates('touches' in e ? e.touches[0] : e.nativeEvent);
     if (!coords) return;
     
-    // Save the current canvas state before we start drawing
     const ctx = canvasRef.current.getContext('2d');
     if (ctx) {
       canvasStateBeforeDrawing.current = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -252,24 +204,13 @@ export default function HandwrittenMessage() {
     const pressure = getPressure('touches' in e ? e.touches[0] : e.nativeEvent);
     points.current = [{ x: coords.x, y: coords.y, pressure }];
     hasDrawn.current = false;
-    hasSavedInitialState.current = false;
     isProcessingStop.current = false;
     hasSavedToHistory.current = false;
     setIsDrawing(true);
     
-    // Start the drawing loop
     const drawLoop = () => {
-      // Only draw if we have at least 3 points (a real stroke, not just a tap)
       if (points.current.length >= 3) {
         drawSmoothLine();
-        // Save initial state after first actual draw
-        if (!hasSavedInitialState.current && canvasRef.current) {
-          hasSavedInitialState.current = true;
-        }
-        // Keep only the last few points to maintain performance
-        if (points.current.length > 10) {
-          points.current = points.current.slice(-10);
-        }
       }
       rafId.current = requestAnimationFrame(drawLoop);
     };
@@ -278,7 +219,6 @@ export default function HandwrittenMessage() {
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    // Prevent mouse events if touch event just fired
     if ('touches' in e) {
       lastTouchTime.current = Date.now();
     } else {
@@ -295,13 +235,11 @@ export default function HandwrittenMessage() {
     
     const pressure = getPressure('touches' in e ? e.touches[0] : e.nativeEvent);
     
-    // Add the new point with scaled coordinates
     points.current.push({ x: coords.x, y: coords.y, pressure });
     hasDrawn.current = true;
   };
 
   const stopDrawing = (e?: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    // Prevent mouse events if touch event just fired
     if (e) {
       if ('touches' in e || 'changedTouches' in e) {
         lastTouchTime.current = Date.now();
@@ -312,13 +250,10 @@ export default function HandwrittenMessage() {
       }
     }
     
-    // Guard against double execution
     if (!isDrawing || isProcessingStop.current) return;
     
-    // Mark that we're processing to prevent re-entry
     isProcessingStop.current = true;
     
-    // Set isDrawing to false to prevent any further operations
     setIsDrawing(false);
     
     if (rafId.current !== null) {
@@ -329,7 +264,6 @@ export default function HandwrittenMessage() {
     if (!canvasRef.current || points.current.length === 0) {
       points.current = [];
       hasDrawn.current = false;
-      hasSavedInitialState.current = false;
       canvasStateBeforeDrawing.current = null;
       isProcessingStop.current = false;
       return;
@@ -339,19 +273,15 @@ export default function HandwrittenMessage() {
     if (!ctx || !canvasStateBeforeDrawing.current) {
       points.current = [];
       hasDrawn.current = false;
-      hasSavedInitialState.current = false;
       canvasStateBeforeDrawing.current = null;
       isProcessingStop.current = false;
       return;
     }
     
-    // Determine if this was a dot (tap) or a stroke (drag)
     const isDot = points.current.length < 3;
     
     if (isDot) {
-      // It's a dot - restore canvas to clean state first
       ctx.putImageData(canvasStateBeforeDrawing.current, 0, 0);
-      // Now draw a clean dot
       const point = points.current[0];
       ctx.beginPath();
       ctx.arc(point.x, point.y, currentWidth / 2, 0, Math.PI * 2);
@@ -359,8 +289,6 @@ export default function HandwrittenMessage() {
       ctx.fill();
     }
     
-    // Save to history exactly once per drawing session
-    // Use requestAnimationFrame to ensure canvas is fully rendered
     if (!hasSavedToHistory.current) {
       hasSavedToHistory.current = true;
       requestAnimationFrame(() => {
@@ -371,15 +299,12 @@ export default function HandwrittenMessage() {
       });
     }
     
-    // Clean up
     points.current = [];
     hasDrawn.current = false;
-    hasSavedInitialState.current = false;
     canvasStateBeforeDrawing.current = null;
     isProcessingStop.current = false;
   };
 
-  // Clean up animation frame on unmount
   useEffect(() => {
     return () => {
       if (rafId.current) {
@@ -398,18 +323,15 @@ export default function HandwrittenMessage() {
 
   const undoLastStroke = () => {
     if (!canvasRef.current || !ctx || history.length === 0) return;
-    
-    // Remove the last state from history
+
     const newHistory = [...history];
     newHistory.pop();
     setHistory(newHistory);
-    
-    // Clear the canvas
+
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    
-    // If there's a previous state, restore it
+
     if (newHistory.length > 0) {
       const img = new Image();
       img.onload = () => {
@@ -419,15 +341,10 @@ export default function HandwrittenMessage() {
     }
   };
 
-  const sendEmail = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!canvasRef.current) {
-      setMessage({ text: t('messageError'), type: 'error' });
-      return;
-    }
-    
-    if (!name.trim()) {
+
+    if (!canvasRef.current || !name.trim()) {
       setMessage({ text: t('messageError'), type: 'error' });
       return;
     }
@@ -436,70 +353,26 @@ export default function HandwrittenMessage() {
     setMessage({ text: t('sendingMessage'), type: 'info' });
 
     try {
-      // Convert canvas to blob
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvasRef.current?.toBlob((blob) => {
-          resolve(blob);
-        }, 'image/png');
-      });
+      const messageDataUrl = canvasRef.current.toDataURL('image/png');
 
-      if (!blob) {
-        throw new Error('Failed to create image from drawing');
-      }
-
-      // Create form data
-      const formData = new FormData();
-      formData.append('name', name.trim());
-      formData.append('message', 'A new message from the engagement website');
-      formData.append('message_type', 'handwritten');
-      formData.append('image', blob, 'drawing.png');
-
-      // Send data to API route
-      const response = await fetch('/api/send-email', {
+      const response = await fetch('/api/messages', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: name.trim(), message: messageDataUrl }),
       });
 
-      // Try to parse JSON; if not JSON, fall back to text for better error visibility
-      const contentType = response.headers.get('content-type') || '';
-      let responseData: any = null;
-      if (contentType.includes('application/json')) {
-        try {
-          responseData = await response.json();
-        } catch (e) {
-          console.error('Failed to parse JSON response:', e);
-          const rawText = await response.text().catch(() => '');
-          responseData = { raw: rawText };
-        }
-      } else {
-        const rawText = await response.text().catch(() => '');
-        responseData = { raw: rawText };
+      const responseData = await response.json();
+
+      if (!response.ok || !responseData.success) {
+        throw new Error(responseData.message || 'Failed to send message');
       }
 
-      if (!response.ok) {
-        console.error('Server error:', response.status, response.statusText, responseData);
-        const msg = responseData?.message
-          || responseData?.error
-          || (typeof responseData?.raw === 'string' && responseData.raw.trim() ? responseData.raw : '')
-          || 'Failed to send message';
-        throw new Error(msg);
-      }
-
-      if (!responseData.success) {
-        console.error('API error:', responseData);
-        throw new Error(responseData.message || 'Message sending failed');
-      }
-
-      setMessage({ 
-        text: t('messageSent'),
-        type: 'success' as const
-      });
-      
-      // Reset form if successful
+      setMessage({ text: t('messageSent'), type: 'success' });
       clearCanvas();
       setName('');
       setHistory([]);
-      
     } catch (error) {
       console.error('Error sending message:', error);
       setMessage({ 
@@ -516,7 +389,7 @@ export default function HandwrittenMessage() {
       id="message" 
       className="py-16 px-4 md:py-20 bg-gradient-to-b from-background to-accent/5 select-none"
     >
-      <div className="max-w-4xl mx-auto"> {/* Increased max width */}
+      <div className="max-w-4xl mx-auto">
         <motion.div 
           className="text-center mb-8 select-none"
           initial="hidden"
@@ -543,7 +416,6 @@ export default function HandwrittenMessage() {
               {t('yourMessage')}...
             </p>
             
-            {/* Pen Options */}
             <div className="mb-6">
               <div className="flex flex-wrap gap-4 justify-center mb-4">
                 <div className="flex items-center gap-2">
@@ -585,7 +457,6 @@ export default function HandwrittenMessage() {
                 </div>
               </div>
               
-              {/* Current Tool Display */}
               <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <div 
@@ -635,7 +506,7 @@ export default function HandwrittenMessage() {
               />
             </div>
 
-            <form onSubmit={sendEmail} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="mb-4">
                 <input
                   type="text"
