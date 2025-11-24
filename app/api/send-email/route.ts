@@ -41,6 +41,14 @@ export async function POST(request: NextRequest) {
       favorite_song = ''
     } = formEntries;
 
+    // Log incoming request for debugging
+    console.log('Received form data:', {
+      name: name?.toString().substring(0, 10) + '...',
+      message_type,
+      hasImage: Boolean(image),
+      imageSize: image instanceof File ? `${(image.size / 1024).toFixed(2)}KB` : 'N/A'
+    });
+
     // Validate required fields
     if (typeof name !== 'string' || !name.trim()) {
       return Response.json(
@@ -63,32 +71,67 @@ export async function POST(request: NextRequest) {
     // Process image if provided
     if (image instanceof File) {
       try {
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+        if (!validTypes.includes(image.type)) {
+          throw new Error(`Invalid file type: ${image.type}. Only JPEG and PNG are supported.`);
+        }
+
+        // Check file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (image.size > maxSize) {
+          throw new Error(`File is too large. Maximum size is 5MB.`);
+        }
+
         const imageBytes = await image.arrayBuffer();
         const buffer = Buffer.from(imageBytes);
-        const filename = `message-${Date.now()}.png`;
+        const filename = `message-${Date.now()}.${image.type.split('/')[1] || 'png'}`;
         const imagePath = path.join(UPLOADS_DIR, filename);
 
-        await fs.mkdir(UPLOADS_DIR, { recursive: true });
-        await fs.writeFile(imagePath, buffer);
+        console.log(`Attempting to save image to: ${imagePath}`);
+        
+        try {
+          // Ensure uploads directory exists
+          await fs.mkdir(UPLOADS_DIR, { recursive: true });
+          console.log(`Upload directory verified/created at: ${UPLOADS_DIR}`);
+          
+          // Write the file
+          await fs.writeFile(imagePath, buffer);
+          console.log(`Image successfully saved to: ${imagePath}`);
+        } catch (fsError) {
+          console.error('Filesystem error during image save:', fsError);
+          throw new Error(`Failed to save image: ${fsError instanceof Error ? fsError.message : 'Unknown error'}`);
+        }
 
         imageUrl = `/uploads/${filename}`;
         imageCid = `handwritten-message-${Date.now()}`;
         
         attachments.push({
-          filename: image.name || 'handwritten-message.png',
+          filename: image.name || `handwritten-message-${Date.now()}.${image.type.split('/')[1] || 'png'}`,
           content: buffer,
           cid: imageCid,
         });
 
         // Save to submissions.json if needed
         if (message_type === 'handwritten') {
-          await saveToSubmissions(name.toString(), imageUrl);
+          try {
+            await saveToSubmissions(name.toString(), imageUrl);
+            console.log('Submission saved successfully');
+          } catch (saveError) {
+            console.error('Error saving submission:', saveError);
+            // Don't fail the entire request if just the submission save fails
+          }
         }
       } catch (error) {
         console.error('Error processing image:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to process image';
         return Response.json(
-          { success: false, message: 'Error processing image' },
-          { status: 500 }
+          { 
+            success: false, 
+            message: errorMessage,
+            details: process.env.NODE_ENV === 'development' ? error : undefined
+          },
+          { status: 400 }
         );
       }
     }
