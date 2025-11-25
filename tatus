@@ -1,0 +1,5 @@
+[33mbc92d3b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Remove guest fields, make MongoDB/email optional, update metadata for new domain, clear dashboard data
+[33ma422e72[m pnpm-lock.yaml
+[33mb107cd5[m package.json
+[33mb4aa05f[m app/api/send-email/route.ts
+[33mece25a2[m app/api/send-email/route.ts
