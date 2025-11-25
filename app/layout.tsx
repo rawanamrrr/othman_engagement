@@ -38,7 +38,6 @@ export default function RootLayout({
           property="og:image"
           content="https://othmanandrita.netlify.app/invitation-design-arabic.jpg"
         />
-        <meta property="og:image:secure_url" content="https://othmanandrita.netlify.app/invitation-design-arabic.jpg" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Our Engagement Invitation" />
@@ -49,7 +48,6 @@ export default function RootLayout({
         <meta name="twitter:title" content="Welcome to Our Beginning" />
         <meta name="twitter:description" content="Celebrating the start of our journey together" />
         <meta name="twitter:image" content="https://othmanandrita.netlify.app/invitation-design-arabic.jpg" />
-        <meta name="twitter:image:alt" content="Our Engagement Invitation" />
 
         <meta name="theme-color" content="#9CA89A" />
 
