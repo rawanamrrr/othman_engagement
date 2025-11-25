@@ -21,6 +21,15 @@ function convertToCSV(data: any[]) {
 
 export async function GET() {
   try {
+    if (!clientPromise) {
+      return new NextResponse('', {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="rsvps.csv"',
+        },
+      });
+    }
     const client = await clientPromise;
     const db = client.db('engagement'); // Replace 'engagement' with your database name if different
     const rsvps = await db.collection('rsvps').find({}).toArray();

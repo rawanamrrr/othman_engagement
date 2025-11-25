@@ -10,11 +10,13 @@ export default function HandwrittenMessage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [name, setName] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [isAttending, setIsAttending] = useState<boolean | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' as 'success' | 'error' | 'info' | '' });
   const [currentColor, setCurrentColor] = useState('#000000');
   const [currentWidth, setCurrentWidth] = useState(3);
   const [history, setHistory] = useState<string[]>([]);
+  const [favoriteSong, setFavoriteSong] = useState('');
 
   const penColors = [
     { color: '#000000', name: t('colorBlack') },
@@ -349,13 +351,35 @@ export default function HandwrittenMessage() {
       return;
     }
 
-    setIsSending(true);
+    if (isAttending === null) {
+      setMessage({ text: t('rsvpError'), type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
     setMessage({ text: t('sendingMessage'), type: 'info' });
 
     try {
+      const rsvpResponse = await fetch('/api/rsvp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          favoriteSong: isAttending ? favoriteSong : '',
+          isAttending,
+        }),
+      });
+
+      const rsvpData = await rsvpResponse.json().catch(() => ({}));
+      if (!rsvpResponse.ok) {
+        throw new Error((rsvpData as { message?: string })?.message || t('rsvpError'));
+      }
+
       const messageDataUrl = canvasRef.current.toDataURL('image/png');
 
-      const response = await fetch('/api/messages', {
+      const messageResponse = await fetch('/api/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -363,24 +387,26 @@ export default function HandwrittenMessage() {
         body: JSON.stringify({ name: name.trim(), message: messageDataUrl }),
       });
 
-      const responseData = await response.json();
+      const messageData = await messageResponse.json().catch(() => ({}));
 
-      if (!response.ok || !responseData.success) {
-        throw new Error(responseData.message || 'Failed to send message');
+      if (!messageResponse.ok || (messageData as { success?: boolean; message?: string })?.success === false) {
+        throw new Error((messageData as { message?: string })?.message || t('messageError'));
       }
 
       setMessage({ text: t('messageSent'), type: 'success' });
       clearCanvas();
       setName('');
+      setFavoriteSong('');
+      setIsAttending(null);
       setHistory([]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending note & RSVP:', error);
       setMessage({ 
         text: error instanceof Error ? error.message : t('messageError'), 
         type: 'error' 
       });
     } finally {
-      setIsSending(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -409,150 +435,224 @@ export default function HandwrittenMessage() {
         >
           <h2 className="text-3xl md:text-4xl font-serif font-medium mb-2 select-none">{t('writeUsMessage')}</h2>
           <p className="text-gray-600 text-center mb-4 select-none">{t('writeUsDescription')}</p>
-          <div className="w-20 h-1 bg-accent mx-auto mb-6 select-none"></div>
           
           <div className="bg-white/90 p-6 md:p-8 rounded-lg shadow-lg select-none">
-            <p className="text-gray-700 text-lg md:text-xl leading-relaxed mb-6 select-none">
-              {t('yourMessage')}...
-            </p>
-            
-            <div className="mb-6">
-              <div className="flex flex-wrap gap-4 justify-center mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">{t('color')}:</span>
-                  <div className="flex gap-1">
-                    {penColors.map((pen) => (
-                      <button
-                        key={pen.color}
-                        type="button"
-                        onClick={() => setCurrentColor(pen.color)}
-                        className={`w-8 h-8 rounded-full border-2 ${
-                          currentColor === pen.color ? 'border-gray-800' : 'border-gray-300'
-                        }`}
-                        style={{ backgroundColor: pen.color }}
-                        title={pen.name}
-                      />
-                    ))}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="text-center space-y-2">
+                <p className="text-gray-700 text-lg md:text-xl leading-relaxed select-none">
+                  {t('yourMessage')}...
+                </p>
+                <p className="text-sm text-muted-foreground select-none">
+                  {t('drawMessageHint')}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-4 justify-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">{t('color')}:</span>
+                    <div className="flex gap-1">
+                      {penColors.map((pen) => (
+                        <button
+                          key={pen.color}
+                          type="button"
+                          onClick={() => setCurrentColor(pen.color)}
+                          className={`w-8 h-8 rounded-full border-2 ${
+                            currentColor === pen.color ? 'border-gray-800' : 'border-gray-300'
+                          }`}
+                          style={{ backgroundColor: pen.color }}
+                          title={pen.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">{t('width')}:</span>
+                    <div className="flex gap-2">
+                      {penWidths.map((pen) => (
+                        <button
+                          key={pen.width}
+                          type="button"
+                          onClick={() => setCurrentWidth(pen.width)}
+                          className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                            currentWidth === pen.width
+                              ? 'bg-accent text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {pen.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">{t('width')}:</span>
-                  <div className="flex gap-2">
-                    {penWidths.map((pen) => (
-                      <button
-                        key={pen.width}
-                        type="button"
-                        onClick={() => setCurrentWidth(pen.width)}
-                        className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                          currentWidth === pen.width
-                            ? 'bg-accent text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {pen.name}
-                      </button>
-                    ))}
+                <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded-full border border-gray-300"
+                      style={{ backgroundColor: currentColor }}
+                    />
+                    <span>{t('current')}: {penColors.find(p => p.color === currentColor)?.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="bg-gray-800 rounded-full"
+                      style={{ 
+                        width: currentWidth * 2, 
+                        height: currentWidth * 2 
+                      }}
+                    />
+                    <span>{t('size')}: {penWidths.find(p => p.width === currentWidth)?.name}</span>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-4 h-4 rounded-full border border-gray-300"
-                    style={{ backgroundColor: currentColor }}
-                  />
-                  <span>{t('current')}: {penColors.find(p => p.color === currentColor)?.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="bg-gray-800 rounded-full"
-                    style={{ 
-                      width: currentWidth * 2, 
-                      height: currentWidth * 2 
+
+                <div 
+                  className="relative border-2 border-gray-200 rounded-lg overflow-hidden select-none"
+                  style={{
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none',
+                    WebkitTapHighlightColor: 'rgba(0,0,0,0)'
+                  }}
+                >
+                  <canvas
+                    ref={canvasRef}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    onTouchCancel={stopDrawing}
+                    className="w-full h-[500px] bg-white touch-none cursor-crosshair select-none"
+                    style={{
+                      touchAction: 'none',
+                      WebkitUserSelect: 'none',
+                      userSelect: 'none',
+                      WebkitTapHighlightColor: 'rgba(0,0,0,0)'
                     }}
                   />
-                  <span>{t('size')}: {penWidths.find(p => p.width === currentWidth)?.name}</span>
                 </div>
               </div>
-            </div>
-            
-            <div 
-              className="relative border-2 border-gray-200 rounded-lg overflow-hidden mb-6 select-none"
-              style={{
-                WebkitUserSelect: 'none',
-                userSelect: 'none',
-                WebkitTapHighlightColor: 'rgba(0,0,0,0)'
-              }}
-            >
-              <canvas
-                ref={canvasRef}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-                onTouchCancel={stopDrawing}
-                className="w-full h-[500px] bg-white touch-none cursor-crosshair select-none"
-                style={{
-                  touchAction: 'none',
-                  WebkitUserSelect: 'none',
-                  userSelect: 'none',
-                  WebkitTapHighlightColor: 'rgba(0,0,0,0)'
-                }}
-              />
-            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="mb-4">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t('yourName')}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-2">{t('writeUsDescription')}</p>
-              </div>
-              
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-2">
                 <div className="flex gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={undoLastStroke}
-                    className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
-                    disabled={isSending || history.length === 0}
+                    className="flex-1 sm:flex-none px-5 sm:px-7 py-3 text-base font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    disabled={isSubmitting || history.length === 0}
                   >
                     {t('undo')}
                   </button>
                   <button
                     type="button"
                     onClick={clearCanvas}
-                    className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors font-medium"
-                    disabled={isSending}
+                    className="flex-1 sm:flex-none px-5 sm:px-7 py-3 text-base font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md hover:bg-gray-200 transition-colors"
+                    disabled={isSubmitting}
                   >
                     {t('clearDrawing')}
                   </button>
                 </div>
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base text-white bg-accent rounded-md hover:bg-accent/90 disabled:opacity-50 transition-colors font-medium whitespace-nowrap"
-                  disabled={isSending}
-                >
-                  {isSending ? t('sendingMessage') : t('sendMessage')}
-                </button>
               </div>
 
+              <div className="space-y-3 text-center">
+                <p className="text-base font-semibold text-gray-800 select-none">
+                  {t('rsvpSubtitle')}
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsAttending(true)}
+                    aria-pressed={isAttending === true}
+                    className={`min-w-[150px] px-6 py-3 rounded-full border-2 text-lg font-semibold transition-all ${
+                      isAttending === true
+                        ? 'bg-accent text-white border-accent shadow-lg shadow-accent/40'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-accent/70'
+                    }`}
+                  >
+                    {t('attending')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAttending(false)}
+                    aria-pressed={isAttending === false}
+                    className={`min-w-[150px] px-6 py-3 rounded-full border-2 text-lg font-semibold transition-all ${
+                      isAttending === false
+                        ? 'bg-gray-900 text-white border-gray-900 shadow-lg shadow-gray-400/40'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-gray-500/70'
+                    }`}
+                  >
+                    {t('notAttending')}
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 select-none">
+                  {isAttending === null
+                    ? t('rsvpSubtitle')
+                    : isAttending
+                      ? t('rsvpDescription')
+                      : t('sorryToMissYou')}
+                </p>
+              </div>
+
+              {isAttending !== null && (
+                <div className="space-y-4 text-left">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 select-none">
+                      {t('name')}
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t('yourName')}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  {isAttending && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 select-none">
+                        {t('promiseToDance')}
+                      </label>
+                      <input
+                        type="text"
+                        value={favoriteSong}
+                        onChange={(e) => setFavoriteSong(e.target.value)}
+                        placeholder={t('favoriteSongPlaceholder')}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent"
+                      />
+                    </div>
+                  )} 
+                  {!isAttending && (
+                    <p className="text-sm text-gray-600 italic select-none">
+                      {t('sorryToMissYou')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full px-6 py-3 text-lg font-semibold text-white bg-accent rounded-xl hover:bg-accent/90 disabled:opacity-60 transition-colors shadow-lg shadow-accent/30"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? t('sendingMessage') : t('sendMessage')}
+              </button>
+
               {message.text && (
-                <div className={`mt-6 p-4 rounded-md text-center ${
-                  message.type === 'error' ? 'bg-red-100 text-red-700 border border-red-200' : 
-                  message.type === 'info' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
-                  'bg-green-100 text-green-700 border border-green-200'
-                }`}>
+                <div
+                  className={`mt-2 p-4 rounded-md text-center ${
+                    message.type === 'error'
+                      ? 'bg-red-100 text-red-700 border border-red-200'
+                      : message.type === 'info'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : 'bg-green-100 text-green-700 border border-green-200'
+                  }`}
+                >
                   {message.text}
                 </div>
               )}

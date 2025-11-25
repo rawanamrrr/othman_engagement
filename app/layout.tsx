@@ -30,13 +30,13 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* ✅ Open Graph tags for Facebook & WhatsApp previews */}
-        <meta property="og:url" content="https://othmanandrita.netlify.app" />
+        <meta property="og:url" content="https://othman-rita.digitivaa.com" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Welcome to Our Beginning" />
         <meta property="og:description" content="Celebrating the start of our journey together" />
         <meta
           property="og:image"
-          content="https://othmanandrita.netlify.app/invitation-design-arabic.jpg"
+          content="https://othman-rita.digitivaa.com/invitation-design-arabic.jpg"
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -47,7 +47,7 @@ export default function RootLayout({
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Welcome to Our Beginning" />
         <meta name="twitter:description" content="Celebrating the start of our journey together" />
-        <meta name="twitter:image" content="https://othmanandrita.netlify.app/invitation-design-arabic.jpg" />
+        <meta name="twitter:image" content="https://othman-rita.digitivaa.com/invitation-design-arabic.jpg" />
 
         <meta name="theme-color" content="#9CA89A" />
 

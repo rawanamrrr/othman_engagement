@@ -48,6 +48,11 @@ type TranslationKey =
   | 'messageSent'
   | 'messageError'
   | 'footerMessage'
+  | 'guestNamesPlaceholder'
+  | 'leaveAMessage'
+  | 'clear'
+  | 'drawMessageHint'
+  | 'sending'
   | 'sendingMessage'
   | 'color'
   | 'width'
@@ -129,6 +134,14 @@ export const translations: Translations = {
   guestNames: {
     en: 'Guest Names',
     ar: 'أسماء الضيوف',
+  },
+  guestNamesPlaceholder: {
+    en: 'List each guest name separated by commas',
+    ar: 'اكتب أسماء الضيوف مفصولة بفواصل',
+  },
+  leaveAMessage: {
+    en: 'Leave a message',
+    ar: 'اترك رسالة',
   },
   sorryToMissYou: {
     en: 'Sorry to miss you!',
@@ -227,12 +240,12 @@ export const translations: Translations = {
     ar: 'ثواني',
   },
   writeUsMessage: {
-    en: 'Write Us a Message',
-    ar: 'اكتبوا لنا رسالة',
+    en: 'Draw Us a Message & RSVP',
+    ar: 'ارسموا لنا رسالة وأكدوا حضوركم',
   },
   writeUsDescription: {
-    en: 'Leave us a handwritten note or message',
-    ar: 'اتركوا لنا رسالة بخط اليد',
+    en: 'Share your handwritten note and RSVP in one place.',
+    ar: 'أرسلوا رسالتكم بخط اليد وأكدوا حضوركم في مكان واحد.',
   },
   yourName: {
     en: 'Your Name',
@@ -246,29 +259,41 @@ export const translations: Translations = {
     en: 'Clear',
     ar: 'مسح',
   },
+  clear: {
+    en: 'Clear',
+    ar: 'مسح',
+  },
   undo: {
     en: 'Undo',
     ar: 'تراجع',
   },
+  drawMessageHint: {
+    en: 'Use your finger or mouse to draw your note.',
+    ar: 'استخدم إصبعك أو الفأرة لكتابة رسالتك.',
+  },
   sendMessage: {
-    en: 'Send Message',
-    ar: 'إرسال الرسالة',
+    en: 'Send Message & RSVP',
+    ar: 'أرسل الرسالة وتأكيد الحضور',
   },
   messageSent: {
-    en: 'Message sent successfully!',
-    ar: 'تم إرسال الرسالة بنجاح!',
+    en: 'Thank you! Your note and RSVP are on the way.',
+    ar: 'شكراً لكم! تم إرسال رسالتكم وتأكيد الحضور.',
   },
   messageError: {
-    en: 'Please enter your name and write a message',
-    ar: 'الرجاء إدخال الاسم وكتابة رسالة',
+    en: 'Please complete your RSVP details and add your name.',
+    ar: 'يرجى إكمال بيانات تأكيد الحضور وإضافة اسمك.',
   },
   footerMessage: {
     en: "We can't wait to celebrate with you",
     ar: 'لا يمكننا الانتظار للاحتفال معكم',
   },
   sendingMessage: {
-    en: 'Sending your message...',
-    ar: 'جاري إرسال رسالتك...',
+    en: 'Sending your note & RSVP...',
+    ar: 'جارٍ إرسال رسالتكم وتأكيد الحضور...',
+  },
+  sending: {
+    en: 'Sending...',
+    ar: 'جاري الإرسال...',
   },
   color: {
     en: 'Color',

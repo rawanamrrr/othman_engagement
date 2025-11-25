@@ -11,7 +11,6 @@ import { useTranslation } from "@/lib/translations"
 import { useLanguage } from "@/contexts/LanguageContext"
 import { Button } from "@/components/ui/button"
 import PhotoUploadSection from "@/components/photo-upload-section"
-import RsvpForm from "@/components/rsvp-form"
 
 // Format date in Arabic or English
 const formatDate = (date: Date, locale: string) => {
@@ -665,17 +664,6 @@ export default function ProAnimatedEngagementPage({ onImageLoad, playGifTrigger 
       >
         <motion.div variants={slideUp}>
           <HandwrittenMessage />
-        </motion.div>
-      </motion.section>
-
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={fastStaggerContainer}
-      >
-        <motion.div variants={slideUp}>
-          <RsvpForm />
         </motion.div>
       </motion.section>
 

@@ -8,13 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Download, X, Users, UserCheck, UserX, Music, List } from 'lucide-react';
+import { Search, Download, X, UserCheck, UserX, Music, List } from 'lucide-react';
 
 interface RSVP {
   _id: string;
   name: string;
-  guests: number;
-  guestNames: string;
   favoriteSong: string;
   isAttending: boolean;
   createdAt: string;
@@ -157,15 +155,13 @@ export default function AdminDashboard() {
 
   const filteredRsvps = useMemo(() => 
     rsvps.filter(rsvp =>
-      rsvp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rsvp.guestNames?.toLowerCase().includes(searchTerm.toLowerCase())
+      rsvp.name.toLowerCase().includes(searchTerm.toLowerCase())
     ), [rsvps, searchTerm]);
 
   const stats = useMemo(() => ({
     total: rsvps.length,
     attending: rsvps.filter(r => r.isAttending).length,
     notAttending: rsvps.filter(r => !r.isAttending).length,
-    totalGuests: rsvps.reduce((sum, r) => sum + (r.isAttending ? (r.guests || 0) : 0), 0),
   }), [rsvps]);
 
   const topSongs = useMemo(() => {
@@ -224,17 +220,16 @@ export default function AdminDashboard() {
 
         {isLoading ? <DashboardSkeleton /> : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
               <StatCard title="Total RSVPs" value={stats.total} icon={List} />
               <StatCard title="Attending" value={stats.attending} icon={UserCheck} color="text-green-600" />
               <StatCard title="Not Attending" value={stats.notAttending} icon={UserX} color="text-red-600" />
-              <StatCard title="Total Guests" value={stats.totalGuests} icon={Users} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="relative lg:col-span-2">
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                <Input type="text" placeholder="Search by name or guest name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 h-10" />
+                <Input type="text" placeholder="Search by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 h-10" />
               </div>
               <TopSongsCard songs={topSongs} />
             </div>
@@ -256,8 +251,6 @@ export default function AdminDashboard() {
                           <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Guests</TableHead>
-                            <TableHead>Guest Names</TableHead>
                             <TableHead>Favorite Song</TableHead>
                             <TableHead>Date</TableHead>
                           </TableRow>
@@ -271,8 +264,6 @@ export default function AdminDashboard() {
                                   {rsvp.isAttending ? 'Attending' : 'Not Attending'}
                                 </span>
                               </TableCell>
-                              <TableCell>{rsvp.isAttending ? rsvp.guests || 0 : '-'}</TableCell>
-                              <TableCell className="max-w-xs truncate">{rsvp.guestNames || '-'}</TableCell>
                               <TableCell className="max-w-xs truncate">{rsvp.favoriteSong || '-'}</TableCell>
                               <TableCell>{new Date(rsvp.createdAt).toLocaleDateString()}</TableCell>
                             </TableRow>

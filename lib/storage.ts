@@ -6,8 +6,6 @@ const DATA_FILE = path.join(process.cwd(), 'data/submissions.json');
 type SubmissionData = {
   rsvps: Array<{
     name: string;
-    guests: string;
-    guestNames: string;
     favoriteSong: string;
     isAttending: boolean;
     timestamp: string;
@@ -48,17 +46,35 @@ export async function getAllSubmissions() {
 async function readDataFile(): Promise<SubmissionData> {
   try {
     const data = await fs.promises.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
+    // Handle empty file or invalid JSON
+    const trimmedData = data.trim();
+    if (!trimmedData) {
+      return { rsvps: [], messages: [] };
+    }
+    try {
+      return JSON.parse(trimmedData);
+    } catch (parseError) {
+      // If JSON is invalid, return default structure
+      console.warn('Invalid JSON in submissions file, resetting to default structure');
+      return { rsvps: [], messages: [] };
+    }
+  } catch (error: any) {
     // If file doesn't exist, return default structure
     if (error.code === 'ENOENT') {
       return { rsvps: [], messages: [] };
     }
-    throw error;
+    // For any other error, return default structure
+    console.warn('Error reading submissions file, using default structure:', error);
+    return { rsvps: [], messages: [] };
   }
 }
 
 async function writeDataFile(data: SubmissionData) {
-  await fs.promises.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  await fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+  try {
+    await fs.promises.mkdir(path.dirname(DATA_FILE), { recursive: true });
+    await fs.promises.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error writing to submissions file:', error);
+    throw error;
+  }
 }
